@@ -1,0 +1,36 @@
+# Pliki bajtowe Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Środowisko wirtualne
+venv/
+env/
+.venv/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logi
+logs/*.log
+*.log
+
+# Dane (zachowaj strukturę katalogów)
+data/*.csv
+!data/.gitkeep
+
+# Backup
+data/backup/
+!data/backup/.gitkeep
+
+# System
+.DS_Store
+Thumbs.db
+
+# Pliki konfiguracyjne z sekretami
+config.local.yaml

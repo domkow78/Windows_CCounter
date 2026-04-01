@@ -1,0 +1,33 @@
+# Konfiguracja systemu Windows_CCounter
+
+sensor:
+  gpio_pin: 17              # Numer pinu GPIO dla czujnika indukcyjnego
+  debounce_ms: 50           # Czas debouncingu w milisekundach
+  pull_up: true             # Włącz wewnętrzny pull-up rezystor
+  active_low: true          # Czujnik aktywny stanem niskim (NPN)
+
+data:
+  data_dir: "./data"           # Katalog na pliki sesji (session_*.csv)
+  backup_enabled: true
+  backup_path: "./data/backup/"
+  max_records_in_memory: 1000
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  enable_cors: true
+
+gui:
+  enabled: true
+  fullscreen: false         # Ustaw na true dla produkcji
+  window_width: 800
+  window_height: 600        # Zwiększona wysokość dla wszystkich przycisków
+  refresh_interval_ms: 500
+
+usb:
+  mount_path: "/media/usb"  # Ścieżka montowania pendrive na Linux
+  auto_detect: true
+
+logging:
+  level: "INFO"
+  file: "./logs/system.log"
