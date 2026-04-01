@@ -196,6 +196,12 @@ timestamp,cycle_number,cycle_duration_ms
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**Zachowanie licznika:**
+- **Sesja aktywna (REC):** licznik pokazuje `session_manager.session_cycle_count`
+- **Sesja nieaktywna (STOP):** licznik pokazuje zapamiętaną wartość `_last_session_cycle_count`
+- **START:** resetuje licznik do 0
+- **STOP:** zapamiętuje ostatnią wartość, licznik się zatrzymuje
+
 ## 🔄 Przepływ danych
 
 ### Rejestracja cyklu (sesja aktywna)
@@ -349,7 +355,7 @@ sensor:
   debounce_ms: 50       # Debouncing
 
 data:
-  csv_path: "./data"    # Katalog danych
+  data_dir: "./data"    # Katalog na pliki sesji
 
 api:
   host: "0.0.0.0"

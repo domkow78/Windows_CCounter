@@ -223,10 +223,9 @@ sensor:
   active_low: true          # Czujnik aktywny stanem niskim (NPN)
 
 data:
-  data_dir: \"./data\"       # Katalog na pliki sesji
+  data_dir: "./data"        # Katalog na pliki sesji (session_*.csv)
   backup_enabled: true
   backup_path: "./data/backup/"
-  max_records_in_memory: 1000
 
 api:
   host: "0.0.0.0"
@@ -237,7 +236,7 @@ gui:
   enabled: true
   fullscreen: false         # Ustaw na true dla produkcji
   window_width: 800
-  window_height: 480
+  window_height: 600        # Wysokość okna
   refresh_interval_ms: 500
 
 usb:
@@ -327,10 +326,12 @@ Interfejs Tkinter dla ekranu dotykowego LCD:
 ### Przyciski sterowania
 | Przycisk | Funkcja |
 |----------|--------|
-| **▶ START** | Rozpoczyna nową sesję, tworzy plik CSV |
-| **⏹ STOP** | Kończy sesję, pokazuje podsumowanie |
+| **▶ START** | Rozpoczyna nową sesję, tworzy plik CSV, resetuje licznik do 0 |
+| **⏹ STOP** | Kończy sesję, pokazuje podsumowanie, licznik zatrzymuje się na ostatniej wartości |
 | **💾 Eksport USB** | Zapisuje dane na pendrive |
 | **📊 Statystyki** | Wyświetla statystyki sesji |
+
+> **Uwaga:** Cykle są zliczane i zapisywane **tylko podczas aktywnej sesji** (po START, przed STOP). Po STOP licznik pokazuje ostatnią wartość z zakończonej sesji.
 
 ### Tabela historii
 - Ostatnie 10 cykli z bieżącej sesji

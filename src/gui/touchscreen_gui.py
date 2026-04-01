@@ -74,6 +74,9 @@ class CycleCounterGUI:
         self._is_running = False
         self._root: Optional[tk.Tk] = None
         
+        # Zapamiętana wartość licznika po STOP
+        self._last_session_cycle_count = 0
+        
         # Widgety do aktualizacji
         self._cycle_count_label: Optional[tk.Label] = None
         self._last_duration_label: Optional[tk.Label] = None
@@ -406,6 +409,9 @@ class CycleCounterGUI:
             messagebox.showwarning("Uwaga", "Brak aktywnej sesji!")
             return
         
+        # Zapamiętaj liczbę cykli przed zakończeniem sesji
+        self._last_session_cycle_count = self.session_manager.session_cycle_count
+        
         # Zakończ sesję
         session = self.session_manager.stop_session()
         
@@ -434,14 +440,13 @@ class CycleCounterGUI:
             return
         
         try:
-            # Aktualizuj licznik cykli - z sesji jeśli aktywna
+            # Aktualizuj licznik cykli - z sesji jeśli aktywna, inaczej zapamiętana wartość
             if self.session_manager and self.session_manager.is_session_active:
                 cycle_count = self.session_manager.session_cycle_count
                 self._cycle_count_label.config(text=str(cycle_count))
-            elif self.sensor:
-                # Fallback do sensora jeśli brak sesji
-                cycle_count = self.sensor.cycle_count
-                self._cycle_count_label.config(text=str(cycle_count))
+            else:
+                # Sesja nieaktywna - pokaż zapamiętaną wartość z ostatniej sesji
+                self._cycle_count_label.config(text=str(self._last_session_cycle_count))
             
             # Status czujnika
             if self.sensor:
