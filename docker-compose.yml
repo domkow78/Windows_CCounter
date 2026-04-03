@@ -1,0 +1,31 @@
+# Docker Compose dla Windows_CCounter
+# Uruchomienie: docker compose up -d
+
+services:
+  ccounter:
+    build: .
+    container_name: ccounter
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Europe/Warsaw
+    volumes:
+      # Dane sesji i backupy (persystentne)
+      - ./data:/app/data
+      # Logi aplikacji (persystentne)
+      - ./logs:/app/logs
+      # Konfiguracja Docker (GUI wyłączone)
+      # Możesz zmienić na ./config.yaml jeśli chcesz własną konfigurację
+      - ./config.docker.yaml:/app/config.yaml:ro
+    devices:
+      # GPIO - dostęp do pinów Raspberry Pi
+      # Użyj /dev/gpiomem dla bezpieczniejszego dostępu
+      - /dev/gpiomem:/dev/gpiomem
+    # Alternatywnie, jeśli gpiomem nie działa:
+    # privileged: true
+
+    # Opcjonalnie: montowanie pendrive USB do eksportu danych
+    # Odkomentuj jeśli potrzebujesz:
+    # volumes:
+    #   - /media/usb:/media/usb

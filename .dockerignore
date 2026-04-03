@@ -1,0 +1,53 @@
+# Pliki ignorowane przez Docker build
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Dokumentacja
+docs/
+README.md
+*.md
+!requirements.txt
+
+# Testy
+tests/
+test_*.py
+*_test.py
+pytest.ini
+.pytest_cache/
+
+# Dane lokalne (montowane jako volume)
+data/
+logs/
+
+# Pliki tymczasowe
+*.log
+*.tmp
+*.bak
+
+# System
+.DS_Store
+Thumbs.db

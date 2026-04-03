@@ -1,0 +1,44 @@
+# Plik usługi systemd dla Windows CCounter
+# 
+# Instalacja:
+#   sudo cp ccounter.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable ccounter.service
+#   sudo systemctl start ccounter.service
+#
+# WAŻNE: Dostosuj ścieżki i użytkownika przed instalacją!
+#   - Zamień 'pi' na nazwę użytkownika (whoami)
+#   - Zamień '/home/pi' na rzeczywisty katalog domowy
+
+[Unit]
+Description=Windows CCounter - System zliczania cykli
+After=graphical.target
+Wants=graphical.target
+
+[Service]
+Type=simple
+
+# Użytkownik i grupa (ZMIEŃ na właściwe!)
+User=pi
+Group=pi
+
+# Katalog roboczy (ZMIEŃ ścieżkę!)
+WorkingDirectory=/home/pi/Windows_CCounter
+
+# Zmienne środowiskowe dla GUI
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+
+# Uruchomienie aplikacji (ZMIEŃ ścieżkę!)
+ExecStart=/home/pi/Windows_CCounter/venv/bin/python main.py
+
+# Restart przy awarii
+Restart=on-failure
+RestartSec=10s
+
+# Logi do journald
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target
