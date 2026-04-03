@@ -80,14 +80,37 @@ class InductiveSensor:
     
     def _setup_gpio(self):
         """Konfiguracja GPIO"""
-        GPIO.setmode(GPIO.BCM)
-        
-        pull = GPIO.PUD_UP if self.pull_up else GPIO.PUD_DOWN
-        GPIO.setup(self.gpio_pin, GPIO.IN, pull_up_down=pull)
-        
-        # Odczytaj początkowy stan
-        self._sensor_active = self._read_sensor_state()
-        logger.info(f"GPIO {self.gpio_pin} skonfigurowane, stan początkowy: {'aktywny' if self._sensor_active else 'nieaktywny'}")
+        try:
+            # Wyczyść ewentualne poprzednie ustawienia tego pinu
+            GPIO.setwarnings(False)
+            GPIO.setmode(GPIO.BCM)
+            
+            # Usuń poprzednią detekcję zdarzeń jeśli istnieje
+            try:
+                GPIO.remove_event_detect(self.gpio_pin)
+            except:
+                pass
+            
+            # Zwolnij pin jeśli był używany
+            try:
+                GPIO.cleanup(self.gpio_pin)
+            except:
+                pass
+            
+            # Ustaw ponownie tryb (może być zresetowany przez cleanup)
+            GPIO.setmode(GPIO.BCM)
+            
+            pull = GPIO.PUD_UP if self.pull_up else GPIO.PUD_DOWN
+            GPIO.setup(self.gpio_pin, GPIO.IN, pull_up_down=pull)
+            
+            # Odczytaj początkowy stan
+            self._sensor_active = self._read_sensor_state()
+            logger.info(f"GPIO {self.gpio_pin} skonfigurowane, stan początkowy: {'aktywny' if self._sensor_active else 'nieaktywny'}")
+            
+        except Exception as e:
+            logger.error(f"Błąd konfiguracji GPIO: {e}")
+            logger.warning("Przełączam na tryb symulacji")
+            self.simulation_mode = True
     
     def _read_sensor_state(self) -> bool:
         """Odczytaj stan czujnika (True = siłownik widoczny)"""
@@ -161,15 +184,31 @@ class InductiveSensor:
         self._is_running = True
         
         if not self.simulation_mode:
-            # Nasłuchuj na obu zboczach (rising i falling)
-            GPIO.add_event_detect(
-                self.gpio_pin,
-                GPIO.BOTH,
-                callback=self._gpio_callback,
-                bouncetime=self.debounce_ms
-            )
-        
-        logger.info("Czujnik uruchomiony")
+            try:
+                # Usuń poprzednią detekcję jeśli istnieje
+                try:
+                    GPIO.remove_event_detect(self.gpio_pin)
+                except:
+                    pass
+                
+                # Krótka pauza przed dodaniem nowej detekcji
+                time.sleep(0.1)
+                
+                # Nasłuchuj na obu zboczach (rising i falling)
+                GPIO.add_event_detect(
+                    self.gpio_pin,
+                    GPIO.BOTH,
+                    callback=self._gpio_callback,
+                    bouncetime=self.debounce_ms
+                )
+                logger.info("Czujnik uruchomiony - detekcja zdarzeń aktywna")
+                
+            except RuntimeError as e:
+                logger.error(f"Błąd przy dodawaniu detekcji zdarzeń: {e}")
+                logger.warning("Przełączam na tryb pollingu zamiast edge detection")
+                self._start_polling_mode()
+        else:
+            logger.info("Czujnik uruchomiony (tryb symulacji)")
     
     def stop(self):
         """Zatrzymaj nasłuchiwanie"""
@@ -179,15 +218,45 @@ class InductiveSensor:
         self._is_running = False
         
         if not self.simulation_mode:
-            GPIO.remove_event_detect(self.gpio_pin)
+            try:
+                GPIO.remove_event_detect(self.gpio_pin)
+            except:
+                pass
         
         logger.info("Czujnik zatrzymany")
+    
+    def _start_polling_mode(self):
+        """Uruchom tryb pollingu jako fallback gdy edge detection nie działa"""
+        self._polling_thread = threading.Thread(target=self._polling_loop, daemon=True)
+        self._polling_thread.start()
+        logger.info("Czujnik uruchomiony w trybie pollingu")
+    
+    def _polling_loop(self):
+        """Pętla pollingu - sprawdza stan GPIO co kilka ms"""
+        last_state = self._read_sensor_state()
+        poll_interval = max(self.debounce_ms / 1000 / 2, 0.01)  # Min 10ms
+        
+        while self._is_running:
+            try:
+                current_state = self._read_sensor_state()
+                if current_state != last_state:
+                    self._last_state_change = time.time()
+                    self._sensor_active = current_state
+                    self._handle_state_change(current_state)
+                    last_state = current_state
+                time.sleep(poll_interval)
+            except Exception as e:
+                logger.error(f"Błąd w pętli pollingu: {e}")
+                time.sleep(0.1)
     
     def cleanup(self):
         """Zwolnij zasoby GPIO"""
         self.stop()
         if not self.simulation_mode:
-            GPIO.cleanup(self.gpio_pin)
+            try:
+                GPIO.cleanup(self.gpio_pin)
+            except:
+                pass
     
     def register_callback(self, callback: Callable[[CycleEvent], None]):
         """
