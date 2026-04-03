@@ -5,6 +5,7 @@ System pomiarowy do zliczania cykli otwarcia/zamknięcia okien suszarki.
 """
 
 import sys
+import os
 import signal
 import logging
 import asyncio
@@ -20,6 +21,20 @@ from src.sensor.inductive_sensor import CycleEvent
 from src.data import CSVHandler, SessionManager
 from src.api import create_app, APIServer
 from src.gui import CycleCounterGUI
+
+
+def is_display_available() -> bool:
+    """Sprawdź czy jest dostępny wyświetlacz (X11/Wayland)"""
+    # Sprawdź zmienną DISPLAY (X11)
+    if os.environ.get('DISPLAY'):
+        return True
+    # Sprawdź Wayland
+    if os.environ.get('WAYLAND_DISPLAY'):
+        return True
+    # Na Windows zawsze dostępny
+    if sys.platform == 'win32':
+        return True
+    return False
 
 
 # === Konfiguracja logowania ===
@@ -232,14 +247,23 @@ class CycleCounterApp:
         self._api_thread.start()
         self.logger.info(f"API Server uruchomiony na porcie {self.config.get('api', {}).get('port', 8000)}")
         
-        # Uruchom GUI jeśli włączone
+        # Uruchom GUI jeśli włączone i dostępny wyświetlacz
         gui_config = self.config.get("gui", {})
-        if gui_config.get("enabled", True):
+        gui_enabled = gui_config.get("enabled", True)
+        display_available = is_display_available()
+        
+        if gui_enabled and not display_available:
+            self.logger.warning("GUI włączone w konfiguracji, ale brak wyświetlacza (DISPLAY)")
+            self.logger.info("Uruchom z monitorem lub ustaw gui.enabled=false w config.yaml")
+            gui_enabled = False
+        
+        if gui_enabled:
             self.logger.info("Uruchamianie GUI...")
             self._run_gui()  # To zablokuje wątek główny (mainloop Tkinter)
         else:
             # Jeśli GUI wyłączone, trzymaj proces przy życiu
-            self.logger.info("GUI wyłączone, system działa w tle...")
+            self.logger.info("GUI wyłączone, system działa w tle (headless)...")
+            self.logger.info(f"API dostępne na: http://0.0.0.0:{self.config.get('api', {}).get('port', 8000)}")
             try:
                 while self._is_running:
                     import time
