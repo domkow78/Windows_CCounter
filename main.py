@@ -21,6 +21,7 @@ from src.sensor.inductive_sensor import CycleEvent
 from src.data import CSVHandler, SessionManager
 from src.api import create_app, APIServer
 from src.gui import CycleCounterGUI
+from src.web import create_nicegui_app, WebUI
 
 
 def is_display_available() -> bool:
@@ -95,6 +96,11 @@ def get_default_config() -> dict:
             "window_height": 480,
             "refresh_interval_ms": 500
         },
+        "web": {
+            "enabled": True,
+            "host": "0.0.0.0",
+            "port": 8080
+        },
         "usb": {
             "mount_path": "/media/usb",
             "auto_detect": True
@@ -122,6 +128,7 @@ class CycleCounterApp:
         self.csv_handler: CSVHandler = None
         self.session_manager: SessionManager = None
         self.gui: CycleCounterGUI = None
+        self.web_ui: WebUI = None
         
         # Flagi
         self._is_running = False
@@ -227,6 +234,28 @@ class CycleCounterApp:
         
         self.gui.start()
     
+    def _run_web_ui(self):
+        """Uruchom Web UI (NiceGUI) w osobnym wątku"""
+        from nicegui import ui
+        
+        web_config = self.config.get("web", {})
+        
+        self.web_ui = create_nicegui_app(
+            session_manager=self.session_manager,
+            sensor=self.sensor,
+            host=web_config.get("host", "0.0.0.0"),
+            port=web_config.get("port", 8080),
+            title="Windows CCounter"
+        )
+        
+        ui.run(
+            host=web_config.get("host", "0.0.0.0"),
+            port=web_config.get("port", 8080),
+            title="Windows CCounter",
+            reload=False,
+            show=False  # Nie otwieraj przeglądarki automatycznie
+        )
+    
     def start(self):
         """Uruchom wszystkie komponenty"""
         self.logger.info("=" * 50)
@@ -256,6 +285,17 @@ class CycleCounterApp:
             self.logger.warning("GUI włączone w konfiguracji, ale brak wyświetlacza (DISPLAY)")
             self.logger.info("Uruchom z monitorem lub ustaw gui.enabled=false w config.yaml")
             gui_enabled = False
+        
+        # Uruchom Web UI (NiceGUI) jeśli włączone
+        web_config = self.config.get("web", {})
+        web_enabled = web_config.get("enabled", True)
+        
+        if web_enabled:
+            self._web_thread = threading.Thread(target=self._run_web_ui, daemon=True)
+            self._web_thread.start()
+            web_port = web_config.get("port", 8080)
+            self.logger.info(f"Web UI uruchomiony na porcie {web_port}")
+            self.logger.info(f"Otwórz przeglądarkę: http://localhost:{web_port}")
         
         if gui_enabled:
             self.logger.info("Uruchamianie GUI...")

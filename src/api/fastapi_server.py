@@ -276,6 +276,26 @@ def create_app(
             filename=f"cycles_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         )
     
+    @app.get("/api/export/session", tags=["Export"])
+    async def export_current_session():
+        """Pobierz plik CSV z aktualnej sesji"""
+        if not api_server.session_manager:
+            raise HTTPException(status_code=500, detail="Session manager nie skonfigurowany")
+        
+        csv_path = api_server.session_manager.get_csv_path()
+        
+        if not csv_path or not csv_path.exists():
+            raise HTTPException(status_code=404, detail="Brak aktywnej sesji lub plik nie istnieje")
+        
+        session = api_server.session_manager.current_session
+        filename = f"session_{session.session_id}.csv" if session else "session_export.csv"
+        
+        return FileResponse(
+            path=str(csv_path),
+            media_type="text/csv",
+            filename=filename
+        )
+    
     @app.get("/api/export/csv/content", response_class=PlainTextResponse, tags=["Export"])
     async def export_csv_content():
         """Pobierz zawartość pliku CSV jako tekst"""

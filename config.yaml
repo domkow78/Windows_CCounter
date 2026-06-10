@@ -24,6 +24,11 @@ gui:
   window_height: 600        # Zwiększona wysokość dla wszystkich przycisków
   refresh_interval_ms: 500
 
+web:
+  enabled: true             # Włącz interfejs webowy NiceGUI
+  host: "0.0.0.0"
+  port: 8080                # Port dla Web UI (osobny od FastAPI)
+
 usb:
   mount_path: "/media/usb"  # Ścieżka montowania pendrive na Linux
   auto_detect: true
