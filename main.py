@@ -315,16 +315,16 @@ class CycleCounterApp:
         """Zatrzymaj wszystkie komponenty"""
         self.logger.info("Zatrzymywanie systemu...")
         self._is_running = False
+
+        if self.session_manager and self.session_manager.is_session_active:
+            self.logger.info("Aktywna sesja zostanie zamknięta przed wyłączeniem systemu")
+            self.session_manager.stop_session()
         
         if self.sensor:
             self.sensor.cleanup()
         
         if self.gui:
             self.gui.stop()
-        
-        # Utwórz backup przy zamknięciu
-        if self.csv_handler:
-            self.csv_handler.create_backup()
         
         self.logger.info("System zatrzymany")
 

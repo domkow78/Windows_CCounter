@@ -120,6 +120,7 @@ class SessionManager:
                 backup_enabled=self.backup_enabled,
                 backup_path=self.backup_path
             )
+            self._csv_handler.ensure_file_exists()
             
             self._session_cycle_count = 0
             
@@ -173,6 +174,10 @@ class SessionManager:
                 callback(finished_session)
             except Exception as e:
                 logger.error(f"Błąd w callbacku stop sesji: {e}")
+
+        backup_file = self.create_backup()
+        if backup_file:
+            logger.info(f"Utworzono backup sesji: {backup_file}")
         
         return finished_session
     
@@ -261,6 +266,13 @@ class SessionManager:
             if self._csv_handler:
                 return self._csv_handler.export_to_path(destination_path)
             return False
+
+    def create_backup(self) -> Optional[str]:
+        """Utwórz backup aktualnego pliku sesji."""
+        with self._lock:
+            if not self._csv_handler:
+                return None
+            return self._csv_handler.create_backup()
     
     def list_sessions(self) -> list[str]:
         """Lista wszystkich plików sesji w katalogu danych"""

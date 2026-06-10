@@ -106,6 +106,11 @@ class CSVHandler:
             with open(self.csv_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=self.FIELDNAMES)
                 writer.writeheader()
+
+    def ensure_file_exists(self):
+        """Utwórz plik CSV z nagłówkiem, jeśli jeszcze nie istnieje."""
+        with self._lock:
+            self._write_header_if_needed()
     
     def add_cycle(
         self,
@@ -243,7 +248,7 @@ class CSVHandler:
             return None
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"cycles_backup_{timestamp}.csv"
+        backup_filename = f"{self.csv_path.stem}_backup_{timestamp}.csv"
         backup_file = self.backup_path / backup_filename
         
         try:
