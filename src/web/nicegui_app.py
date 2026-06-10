@@ -219,23 +219,58 @@ class WebUI:
         
         with ui.column().classes('w-full max-w-4xl mx-auto p-4 gap-4'):
             ui.label('📊 Statystyki').classes('text-2xl font-bold')
-            
-            with ui.card().classes('w-full'):
-                ui.label('Statystyki wszystkich sesji').classes('text-lg font-bold mb-4')
-                
-                # Tu będą wykresy i szczegółowe statystyki
-                with ui.row().classes('w-full gap-4'):
-                    with ui.card().classes('flex-1 bg-blue-50'):
-                        ui.label('Suma cykli').classes('text-gray-600')
-                        ui.label('0').classes('text-3xl font-bold text-blue-600')
-                    
-                    with ui.card().classes('flex-1 bg-green-50'):
-                        ui.label('Średni czas cyklu').classes('text-gray-600')
-                        ui.label('-- ms').classes('text-3xl font-bold text-green-600')
-                    
-                    with ui.card().classes('flex-1 bg-orange-50'):
-                        ui.label('Liczba sesji').classes('text-gray-600')
-                        ui.label('0').classes('text-3xl font-bold text-orange-600')
+            self._render_all_sessions_stats()
+            ui.timer(1.0, self._render_all_sessions_stats.refresh)
+
+    @ui.refreshable
+    def _render_all_sessions_stats(self):
+        """Renderuj statystyki ze wszystkich sesji."""
+        stats = self.session_manager.get_all_sessions_statistics() if self.session_manager else {
+            'total_sessions': 0,
+            'total_cycles': 0,
+            'avg_duration_ms': 0,
+            'min_duration_ms': 0,
+            'max_duration_ms': 0,
+            'first_cycle_time': None,
+            'last_cycle_time': None,
+        }
+
+        avg_duration = f"{stats['avg_duration_ms']:.0f} ms" if stats['total_cycles'] else '-- ms'
+        min_max = (
+            f"{stats['min_duration_ms']:.0f} / {stats['max_duration_ms']:.0f} ms"
+            if stats['total_cycles'] else '-- / -- ms'
+        )
+        first_cycle_time = stats['first_cycle_time'] or '--'
+        last_cycle_time = stats['last_cycle_time'] or '--'
+
+        with ui.card().classes('w-full'):
+            ui.label('Statystyki wszystkich sesji').classes('text-lg font-bold mb-4')
+
+            with ui.row().classes('w-full gap-4'):
+                with ui.card().classes('flex-1 bg-blue-50'):
+                    ui.label('Suma cykli').classes('text-gray-600')
+                    ui.label(str(stats['total_cycles'])).classes('text-3xl font-bold text-blue-600')
+
+                with ui.card().classes('flex-1 bg-green-50'):
+                    ui.label('Średni czas cyklu').classes('text-gray-600')
+                    ui.label(avg_duration).classes('text-3xl font-bold text-green-600')
+
+                with ui.card().classes('flex-1 bg-orange-50'):
+                    ui.label('Liczba sesji').classes('text-gray-600')
+                    ui.label(str(stats['total_sessions'])).classes('text-3xl font-bold text-orange-600')
+
+            with ui.row().classes('w-full gap-4 mt-4'):
+                with ui.card().classes('flex-1'):
+                    ui.label('Min / Max').classes('text-gray-500 text-sm')
+                    ui.label(min_max).classes('text-xl font-bold')
+
+                with ui.card().classes('flex-1'):
+                    ui.label('Pierwszy cykl').classes('text-gray-500 text-sm')
+                    ui.label(first_cycle_time).classes('text-xl font-bold')
+
+                with ui.card().classes('flex-1'):
+                    ui.label('Ostatni cykl').classes('text-gray-500 text-sm')
+                    ui.label(last_cycle_time).classes('text-xl font-bold')
     
     def _create_history_page(self):
         """Strona historii"""

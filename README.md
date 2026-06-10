@@ -4,7 +4,7 @@ System pomiarowy do zliczania cykli otwarcia/zamknięcia okien suszarki dla P.K.
 
 ## 📋 Opis systemu
 
-System oparty na **Raspberry Pi** służący do monitorowania i rejestrowania cykli pracy siłownika sterującego oknami suszarki. System automatycznie zlicza cykle otwarcia-zamknięcia oraz mierzy czas trwania każdego cyklu.
+System oparty na **Raspberry Pi** służący do monitorowania i rejestrowania cykli pracy siłownika sterującego oknami suszarki. System automatycznie zlicza cykle otwarcia-zamknięcia oraz mierzy czas trwania każdego cyklu. Aplikacja udostępnia lokalne GUI **Tkinter**, interfejs webowy **NiceGUI** oraz REST API **FastAPI**.
 
 ## 🎯 Założenia funkcjonalne
 
@@ -52,18 +52,16 @@ Dane zapisywane są do pliku **CSV** zawierającego:
 │                              │                              │
 │                              ▼                              │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │   Ekran      │◀──▶│   GUI        │◀──▶│   FastAPI    │  │
-│  │   Dotykowy   │    │   (Tkinter/  │    │   Server     │  │
-│  │   LCD        │    │    PyQt)     │    │   (REST)     │  │
-│  └──────────────┘    └──────────────┘    └──────────────┘  │
-│                                                 │           │
-└─────────────────────────────────────────────────│───────────┘
-                                                  │
-                                                  ▼
-                                          ┌──────────────┐
-                                          │   Klient     │
-                                          │   WWW/API    │
-                                          └──────────────┘
+│  │   Ekran      │◀──▶│   GUI        │    │   FastAPI    │  │
+│  │   Dotykowy   │    │  (Tkinter)   │    │   Server     │  │
+│  │   LCD        │    └──────────────┘    │   (REST)     │  │
+│  └──────────────┘                         └──────┬───────┘  │
+│                                                  │          │
+│                                           ┌──────▼───────┐  │
+│                                           │   NiceGUI    │  │
+│                                           │   Web UI     │  │
+│                                           └──────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## 💻 Komponenty software
@@ -84,9 +82,18 @@ Dane zapisywane są do pliku **CSV** zawierającego:
 - **GET** `/api/cycles/latest` - ostatni cykl
 - **GET** `/api/stats` - statystyki (suma cykli, średni czas, itp.)
 - **GET** `/api/export/csv` - pobranie pliku CSV
+- **GET** `/api/export/session` - pobranie pliku aktualnej sesji
 - **GET** `/api/status` - status systemu
 
-### 4. GUI (ekran dotykowy)
+### 4. Web UI (NiceGUI)
+- Dashboard dostępny w przeglądarce na osobnym porcie
+- START/STOP sesji z poziomu WWW
+- Podgląd statusu sesji, czujnika, licznika i ostatniego cyklu
+- Tabela ostatnich cykli i szybkie statystyki sesji
+- Pobieranie bieżącej sesji CSV na dysk
+- Panel historii zapisanych sesji i tryb symulacji na PC
+
+### 5. GUI (ekran dotykowy)
 - **Przycisk START** - rozpoczyna nową sesję pomiarową
 - **Przycisk STOP** - kończy sesję z podsumowaniem
 - Wyświetlanie aktualnej liczby cykli w sesji
@@ -137,6 +144,9 @@ Windows_CCounter/
 │   ├── api/
 │   │   ├── __init__.py
 │   │   └── fastapi_server.py     # REST API (FastAPI + Uvicorn)
+│   ├── web/
+│   │   ├── __init__.py
+│   │   └── nicegui_app.py        # Interfejs webowy NiceGUI
 │   └── gui/
 │       ├── __init__.py
 │       └── touchscreen_gui.py    # Interfejs Tkinter dla ekranu dotykowego
@@ -168,6 +178,10 @@ pip install -r requirements.txt
 
 # Uruchomienie
 python main.py
+
+# Dostęp po uruchomieniu
+# Web UI:  http://localhost:8080
+# REST API: http://localhost:8000
 ```
 
 ### Linux / Raspberry Pi
@@ -190,7 +204,21 @@ pip install RPi.GPIO
 
 # Uruchomienie
 python main.py
+
+# Dostęp po uruchomieniu
+# Web UI:  http://<IP_RPI>:8080
+# REST API: http://<IP_RPI>:8000
 ```
+
+## ⚡ Szybki start
+
+Po uruchomieniu `python main.py` aplikacja standardowo startuje w trzech warstwach:
+
+- **FastAPI** na porcie `8000`
+- **NiceGUI Web UI** na porcie `8080`
+- **Tkinter GUI** lokalnie, jeśli dostępny jest ekran i `gui.enabled=true`
+
+Na Windows system zwykle działa w **trybie symulacji**, więc można testować działanie bez GPIO.
 
 ## 📦 Zależności
 
@@ -204,6 +232,7 @@ pydantic-settings>=2.1.0
 python-dateutil>=2.8.2
 aiofiles>=23.2.1
 PyYAML>=6.0.1
+nicegui>=1.4.0
 python-multipart>=0.0.6
 
 # Raspberry Pi GPIO (zainstaluj ręcznie na Raspberry Pi)
@@ -226,6 +255,7 @@ data:
   data_dir: "./data"        # Katalog na pliki sesji (session_*.csv)
   backup_enabled: true
   backup_path: "./data/backup/"
+  max_records_in_memory: 1000
 
 api:
   host: "0.0.0.0"
@@ -238,6 +268,11 @@ gui:
   window_width: 800
   window_height: 600        # Wysokość okna
   refresh_interval_ms: 500
+
+web:
+  enabled: true             # Interfejs webowy NiceGUI
+  host: "0.0.0.0"
+  port: 8080
 
 usb:
   mount_path: "/media/usb"  # Ścieżka montowania pendrive
@@ -274,6 +309,7 @@ timestamp,cycle_number,cycle_duration_ms
 | GET | `/api/stats` | Statystyki systemu |
 | GET | `/api/status` | Status systemu (czujnik, uptime) |
 | GET | `/api/export/csv` | Pobierz plik CSV (download) |
+| GET | `/api/export/session` | Pobierz plik bieżącej sesji |
 | GET | `/api/export/csv/content` | Zawartość CSV jako tekst |
 | POST | `/api/usb/export` | Eksport na pendrive |
 | GET | `/api/usb/status` | Status pendrive (zamontowany?) |
@@ -313,6 +349,27 @@ timestamp,cycle_number,cycle_duration_ms
 }
 ```
 
+## 🌐 Funkcje Web UI
+
+Interfejs NiceGUI dostępny w przeglądarce:
+
+### Dashboard
+- Status sesji `🔴 REC` / `⏹ STOP`
+- Osobny panel przycisków **START** / **STOP**
+- Aktualna liczba cykli w sesji
+- Status czujnika i podgląd ostatniego cyklu
+- Tabela ostatnich cykli i szybkie statystyki
+- Przycisk **Pobierz sesję** zapisujący CSV na dysk użytkownika
+
+### Historia i eksport
+- Lista zapisanych plików `session_*.csv`
+- Pobieranie wybranych plików CSV
+- Eksport aktualnej sesji bezpośrednio z dashboardu
+
+### Tryb symulacji
+- Przyciski do symulacji pojedynczych i wielokrotnych cykli
+- Przydatne do testów na Windows bez fizycznego GPIO
+
 ## 📱 Funkcje GUI
 
 Interfejs Tkinter dla ekranu dotykowego LCD:
@@ -321,7 +378,7 @@ Interfejs Tkinter dla ekranu dotykowego LCD:
 - Duży licznik cykli (widoczny z daleka)
 - Czas ostatniego cyklu w milisekundach
 - Status czujnika (aktywny/nieaktywny) z kolorowym wskaźnikiem
-- **Status sesji** - `🔴 REC: session_xxx.csv` lub `⏹ STOP`
+- **Status sesji** - `🔴 REC` lub `⏹ STOP`
 
 ### Przyciski sterowania
 | Przycisk | Funkcja |
@@ -352,16 +409,19 @@ Invoke-RestMethod -Method POST -Uri "http://localhost:8000/api/simulate/cycles/5
 
 ## 🖥️ Tryby uruchomienia
 
-| Tryb | GUI | API | Użycie |
-|------|-----|-----|--------|
-| Pełny | ✅ | ✅ | Produkcja na Raspberry Pi |
-| Bez GUI | ❌ | ✅ | Serwer headless |
-| Symulacja | ✅ | ✅ | Testy na PC (brak GPIO) |
+| Tryb | Tkinter GUI | Web UI | API | Użycie |
+|------|-------------|--------|-----|--------|
+| Pełny | ✅ | ✅ | ✅ | Produkcja na Raspberry Pi |
+| Bez GUI lokalnego | ❌ | ✅ | ✅ | Serwer headless z WWW |
+| Symulacja | ✅ | ✅ | ✅ | Testy na PC bez GPIO |
 
 Konfiguracja w `config.yaml`:
 ```yaml
 gui:
   enabled: true   # false = tryb bez GUI
+
+web:
+  enabled: true   # false = wyłącza interfejs NiceGUI
 ```
 
 ## � Dokumentacja

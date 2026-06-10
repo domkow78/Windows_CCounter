@@ -7,6 +7,7 @@ cykle są zapisywane do dedykowanego pliku CSV.
 
 import logging
 import threading
+import csv
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable
@@ -267,6 +268,60 @@ class SessionManager:
         for f in self.data_dir.glob("session_*.csv"):
             sessions.append(f.name)
         return sorted(sessions, reverse=True)
+
+    def get_all_sessions_statistics(self) -> dict:
+        """Pobierz statystyki ze wszystkich zapisanych sesji."""
+        session_files = sorted(self.data_dir.glob("session_*.csv"))
+
+        total_sessions = 0
+        total_cycles = 0
+        durations: list[float] = []
+        first_cycle_time = None
+        last_cycle_time = None
+
+        for session_file in session_files:
+            try:
+                with open(session_file, "r", newline="", encoding="utf-8") as file_handle:
+                    reader = csv.DictReader(file_handle)
+                    session_records = [CycleRecord.from_dict(row) for row in reader if row.get("timestamp")]
+
+                if not session_records:
+                    continue
+
+                total_sessions += 1
+                total_cycles += len(session_records)
+                durations.extend(record.cycle_duration_ms for record in session_records)
+
+                session_first = session_records[0].timestamp
+                session_last = session_records[-1].timestamp
+
+                if first_cycle_time is None or session_first < first_cycle_time:
+                    first_cycle_time = session_first
+                if last_cycle_time is None or session_last > last_cycle_time:
+                    last_cycle_time = session_last
+            except Exception as error:
+                logger.error(f"Błąd podczas liczenia statystyk pliku {session_file}: {error}")
+
+        if not durations:
+            return {
+                "total_sessions": 0,
+                "total_cycles": 0,
+                "avg_duration_ms": 0,
+                "min_duration_ms": 0,
+                "max_duration_ms": 0,
+                "first_cycle_time": None,
+                "last_cycle_time": None,
+            }
+
+        return {
+            "total_sessions": total_sessions,
+            "total_cycles": total_cycles,
+            "avg_duration_ms": round(sum(durations) / len(durations), 2),
+            "min_duration_ms": round(min(durations), 2),
+            "max_duration_ms": round(max(durations), 2),
+            "first_cycle_time": first_cycle_time,
+            "last_cycle_time": last_cycle_time,
+        }
     
     def register_on_start(self, callback: Callable[[SessionInfo], None]):
         """Zarejestruj callback wywoływany przy starcie sesji"""
