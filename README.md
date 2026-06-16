@@ -66,10 +66,15 @@ Dane zapisywane są do pliku **CSV** zawierającego:
 
 ## 💻 Komponenty software
 
-### 1. Moduł pomiarowy
-- Nasłuchiwanie sygnałów GPIO z czujnika indukcyjnego
+### 1. Moduł czujnika indukcyjnego (wieloplatformowy)
+- **Obsługa dwóch backendów sprzętowych:**
+  - GPIO bezpośrednie (domyślnie) - `InductiveSensor`
+  - Automation HAT Mini (zalecane) - `AutomationHATSensor` z wejściem IN1
+- Nasłuchiwanie sygnałów z detektorem zmian stanu
 - Pomiar czasu między impulsami (rising/falling edge)
 - Obsługa debouncingu sygnału
+- System callbacków dla powiadomień o cyklach
+- **Factory pattern** - `create_sensor_from_config()` do wyboru implementacji
 
 ### 2. Moduł zapisu danych
 - **SessionManager** - zarządzanie sesjami pomiarowymi
@@ -108,20 +113,25 @@ Dane zapisywane są do pliku **CSV** zawierającego:
 ### Wymagane komponenty
 - **Raspberry Pi** (3B+/4/5)
 - **Czujnik indukcyjny** (NPN/PNP, 3-przewodowy)
+- **Pimoroni Automation HAT Mini** - zalecana nakładka wejściowa dla czujnika
 - **Wyświetlacz LCD** z obsługą dotyku (np. 3.5"/5"/7")
 - Zasilacz 5V
 - Karta microSD
 
 ### Podłączenie czujnika
 ```
-Czujnik indukcyjny          Raspberry Pi
-─────────────────          ─────────────
-     VCC  ──────────────▶  5V / 3.3V
-     GND  ──────────────▶  GND
-     OUT  ──────────────▶  GPIO (np. GPIO17)
+Czujnik E2S-H4N1 5V         Automation HAT Mini
+──────────────────         ───────────────────
+  VCC  ──────────────▶  5V zasilania czujnika
+  GND  ──────────────▶  GND
+  OUT  ──────────────▶  IN1
 ```
 
-> ⚠️ **Uwaga:** Sprawdź napięcie wyjściowe czujnika. Jeśli > 3.3V, użyj dzielnika napięcia lub konwertera poziomów logicznych.
+> ⚠️ **Uwaga:** W docelowej instalacji zalecane jest użycie nakładki **Automation HAT Mini**
+> jako interfejsu dla czujnika **E2S-H4N1 4 mm 5V**. Pozwala to uniknąć bezpośredniego
+> podawania sygnału na GPIO Raspberry Pi i upraszcza okablowanie.
+
+> ℹ️ Szczegóły wariantu z nakładką opisano w pliku `pimoroni.md`.
 
 ## 📁 Struktura projektu
 
@@ -129,6 +139,7 @@ Czujnik indukcyjny          Raspberry Pi
 Windows_CCounter/
 ├── .gitignore              # Ignorowane pliki Git
 ├── README.md               # Dokumentacja projektu
+├── pimoroni.md             # Opis użycia Automation HAT Mini z czujnikiem E2S-H4N1
 ├── requirements.txt        # Zależności Python
 ├── config.yaml             # Konfiguracja systemu
 ├── main.py                 # Główny punkt wejścia
@@ -136,7 +147,9 @@ Windows_CCounter/
 │   ├── __init__.py
 │   ├── sensor/
 │   │   ├── __init__.py
-│   │   └── inductive_sensor.py   # Obsługa czujnika indukcyjnego GPIO
+│   │   ├── inductive_sensor.py      # Obsługa czujnika GPIO bezpośrednie
+│   │   ├── automation_hat_sensor.py # Obsługa Automation HAT Mini (IN1)
+│   │   └── sensor_factory.py        # Factory do wyboru implementacji
 │   ├── data/
 │   │   ├── __init__.py
 │   │   ├── csv_handler.py        # Zapis/odczyt danych CSV
@@ -155,7 +168,8 @@ Windows_CCounter/
 ├── logs/
 │   └── system.log          # Logi systemowe
 ├── docs/
-│   └── architecture.md     # Dokumentacja architektury
+│   ├── architecture.md     # Dokumentacja architektury
+│   └── deployment.md       # Instrukcje deployment na Raspberry Pi
 └── venv/                   # Środowisko wirtualne Python
 ```
 
@@ -196,11 +210,23 @@ python3 -m venv venv
 # Aktywacja środowiska
 source venv/bin/activate
 
-# Instalacja zależności
+# Instalacja zależności podstawowych
 pip install -r requirements.txt
 
 # Instalacja GPIO (tylko na Raspberry Pi)
 pip install RPi.GPIO
+
+# Instalacja Automation HAT Mini (jeśli używasz HAT zamiast GPIO)
+# Opcja 1: Z repozytorium pimoroni
+sudo apt install python3-automationhat
+# lub
+pip install automationhat
+
+# Opcja 2: Instalacja ze źródła
+git clone https://github.com/pimoroni/automation-hat.git
+cd automation-hat
+./install.sh
+cd ../Windows_CCounter
 
 # Uruchomienie
 python main.py
@@ -208,6 +234,52 @@ python main.py
 # Dostęp po uruchomieniu
 # Web UI:  http://<IP_RPI>:8080
 # REST API: http://<IP_RPI>:8000
+```
+
+## ⚙️ Konfiguracja
+
+### Wybór backendu czujnika
+
+Edytuj plik `config.yaml`:
+
+```yaml
+sensor:
+  # Wybór backendu: "gpio" lub "automationhat"
+  hardware_backend: "gpio"
+  
+  # Dla GPIO bezpośredniego:
+  gpio_pin: 17              # Numer pinu GPIO
+  pull_up: true
+  
+  # Dla Automation HAT Mini:
+  automation_hat_input: "one"  # "one", "two" lub "three"
+  
+  # Wspólne ustawienia:
+  debounce_ms: 50           # Czas debouncingu
+  active_low: true          # Aktywny stan niski (NPN)
+```
+
+### Uruchomienie z Automation HAT Mini
+
+```bash
+# Zmień w config.yaml
+sensor:
+  hardware_backend: "automationhat"
+  automation_hat_input: "one"
+
+# Uruchom aplikację
+python main.py
+```
+
+### Tryb symulacji (Windows / testy)
+
+Na Windows system automatycznie startuje w trybie symulacji.
+Można testować wszystkie funkcje bez fizycznego GPIO.
+
+Aby wymusić tryb symulacji na Raspberry Pi, dodaj do `config.yaml`:
+```yaml
+sensor:
+  simulation_mode: true
 ```
 
 ## ⚡ Szybki start
@@ -219,6 +291,12 @@ Po uruchomieniu `python main.py` aplikacja standardowo startuje w trzech warstwa
 - **Tkinter GUI** lokalnie, jeśli dostępny jest ekran i `gui.enabled=true`
 
 Na Windows system zwykle działa w **trybie symulacji**, więc można testować działanie bez GPIO.
+
+Na Raspberry Pi zalecany wariant produkcyjny zakłada podłączenie czujnika
+**E2S-H4N1 4 mm 5V** do wejścia **IN1** nakładki **Automation HAT Mini**.
+
+Obecna implementacja repozytorium nadal wykorzystuje bezpośrednią obsługę GPIO jako ścieżkę bazową.
+Wariant z **Automation HAT Mini / IN1** jest opisanym i zalecanym kierunkiem integracji sprzętowej.
 
 ## 📦 Zależności
 
@@ -237,6 +315,9 @@ python-multipart>=0.0.6
 
 # Raspberry Pi GPIO (zainstaluj ręcznie na Raspberry Pi)
 # RPi.GPIO>=0.7.1
+
+# Opcjonalnie: biblioteka nakładki Automation HAT Mini
+# automationhat
 
 # GUI - tkinter jest wbudowany w Python
 ```

@@ -29,7 +29,7 @@ Aplikacja uruchamiana jest **natywnie** z pełnym wsparciem dla GUI.
 | RAM | 512 MB (1 GB+ zalecane) |
 | Pamięć | 4 GB karta SD |
 | Monitor | Dowolny z HDMI (dotykowy zalecany) |
-| GPIO | Pin 17 (domyślnie) dla czujnika indukcyjnego |
+| Interfejs czujnika | Automation HAT Mini, wejście IN1 |
 
 ### Weryfikacja systemu
 
@@ -67,7 +67,7 @@ sudo apt install -y python3-tk
 sudo apt install -y python3-gpiozero
 ```
 
-### 2.3 Konfiguracja uprawnień GPIO
+### 2.3 Konfiguracja uprawnień GPIO (jeśli używasz GPIO bezpośredniego)
 
 ```bash
 # Dodaj użytkownika do grupy gpio
@@ -77,10 +77,12 @@ sudo usermod -a -G gpio $USER
 sudo reboot
 ```
 
+> **Uwaga:** Jeśli używasz Automation HAT Mini z wejściem IN1, uprawnienia GPIO mogą nie być wymagane.
+
 ### 2.4 Weryfikacja uprawnień
 
 ```bash
-# Po ponownym zalogowaniu
+# Po ponownym zalogowaniu (jeśli używasz GPIO)
 groups $USER
 # Powinno zawierać: gpio
 
@@ -120,8 +122,21 @@ pip install --upgrade pip
 # Zależności aplikacji
 pip install -r requirements.txt
 
-# Biblioteki GPIO dla Raspberry Pi
+# Biblioteki GPIO dla Raspberry Pi (jeśli używasz GPIO bezpośredniego)
 pip install RPi.GPIO gpiozero
+
+# === WARIANT A: Automation HAT Mini (ZALECANE) ===
+# Instalacja biblioteki Automation HAT
+pip install automationhat
+
+# Lub ze źródła:
+git clone https://github.com/pimoroni/automation-hat
+cd automation-hat
+./install.sh
+cd ../Windows_CCounter
+
+# === WARIANT B: GPIO bezpośrednie (ALTERNATYWA) ===
+# W tym wypadku wystarczy pip install RPi.GPIO
 ```
 
 ### 3.4 Utworzenie katalogów
@@ -140,6 +155,31 @@ Edytuj `config.yaml` według potrzeb:
 
 ```bash
 nano config.yaml
+```
+
+### 4.2 Wybór backendu czujnika
+
+W pliku `config.yaml` wybierz backend sprzętowy:
+
+#### Wariant A: Automation HAT Mini (ZALECANE)
+```yaml
+sensor:
+  # Użyj Automation HAT Mini z wejściem IN1
+  hardware_backend: "automationhat"
+  automation_hat_input: "one"    # "one", "two" lub "three"
+  debounce_ms: 50
+  active_low: true
+```
+
+#### Wariant B: GPIO bezpośrednie
+```yaml
+sensor:
+  # Użyj bezpośredniego GPIO
+  hardware_backend: "gpio"
+  gpio_pin: 17                   # Numer pinu GPIO
+  pull_up: true
+  debounce_ms: 50
+  active_low: true
 ```
 
 ### 4.2 Zalecane ustawienia produkcyjne
@@ -168,24 +208,38 @@ logging:
 ### 4.3 Podłączenie czujnika
 
 ```
-Czujnik indukcyjny NPN (PNP wymaga active_low: false):
+Czujnik E2S-H4N1 4 mm 5V -> Automation HAT Mini (zalecane):
 
-┌─────────────────┐
-│  Raspberry Pi   │
-│                 │
-│  GPIO 17 ◄──────┼──── Signal (niebieski/żółty)
-│  3.3V    ───────┼──── VCC (brązowy) 
-│  GND     ───────┼──── GND (czarny)
-└─────────────────┘
-         │
-    ┌────┴────┐
-    │ Czujnik │
-    │ indukcyjny
-    └─────────┘
+┌──────────────────────┐        ┌──────────────────────┐
+│     E2S-H4N1 5V      │        │  Automation HAT Mini │
+│                      │        │                      │
+│ VCC  ────────────────┼──────▶ │ zasilanie 5V         │
+│ GND  ────────────────┼──────▶ │ GND                  │
+│ OUT  ────────────────┼──────▶ │ IN1                  │
+└──────────────────────┘        └──────────────────────┘
 ```
 
-> ⚠️ Większość czujników przemysłowych wymaga 12-24V. 
-> Użyj transoptora lub konwertera poziomów logicznych!
+> ⚠️ Przed uruchomieniem potwierdź typ wyjścia konkretnej wersji czujnika
+> **E2S-H4N1 4 mm 5V** w karcie katalogowej. Jeżeli wersja wyjścia wymaga innego sposobu
+> polaryzacji lub pracy typu open collector, sprawdź to pomiarem przed podłączeniem produkcyjnym.
+
+> ℹ️ Szczegółowy opis wariantu sprzętowego i uzasadnienie użycia nakładki znajduje się w pliku `pimoroni.md`.
+
+### 4.4 Dlaczego IN1 zamiast bezpośredniego GPIO
+
+W tym projekcie zalecane jest użycie **Automation HAT Mini** jako wejścia pośredniego między
+czujnikiem a Raspberry Pi, ponieważ:
+
+- upraszcza okablowanie i serwis,
+- daje wygodne zaciski śrubowe,
+- ogranicza ryzyko błędnego podania sygnału bezpośrednio na GPIO,
+- ułatwia dalszą rozbudowę systemu o dodatkowe sygnały automatyki.
+
+Bezpośrednie GPIO można traktować jako wariant uproszczony lub testowy.
+
+Aktualna baza kodu projektu nadal posiada bezpośrednią obsługę GPIO jako wariant podstawowy.
+Opis użycia **Automation HAT Mini / IN1** w tym dokumencie porządkuje docelową konfigurację
+sprzętową dla wdrożenia na Raspberry Pi.
 
 ---
 

@@ -14,6 +14,9 @@ nicegui>=1.4.0
 # RPi.GPIO>=0.7.1
 # gpiozero>=2.0
 
+# Pimoroni Automation HAT Mini (opcjonalnie, dla HAT zamiast GPIO)
+# automationhat>=0.16.0
+
 # GUI
 # tkinter jest wbudowany w Python
 # Dla wykresów (opcjonalnie):

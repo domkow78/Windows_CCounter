@@ -7,7 +7,8 @@ services:
     container_name: ccounter
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8000:8000"    # FastAPI REST
+      - "8080:8080"    # NiceGUI Web UI
     environment:
       - TZ=Europe/Warsaw
     volumes:
@@ -15,17 +16,23 @@ services:
       - ./data:/app/data
       # Logi aplikacji (persystentne)
       - ./logs:/app/logs
-      # Konfiguracja Docker (GUI wyłączone)
-      # Możesz zmienić na ./config.yaml jeśli chcesz własną konfigurację
+      # Konfiguracja Docker (GUI wyłączone, Web UI włączone)
       - ./config.docker.yaml:/app/config.yaml:ro
     devices:
-      # GPIO - dostęp do pinów Raspberry Pi
-      # Użyj /dev/gpiomem dla bezpieczniejszego dostępu
-      - /dev/gpiomem:/dev/gpiomem
-    # Alternatywnie, jeśli gpiomem nie działa:
+      # === WARIANT A: Automation HAT Mini ===
+      # HAT używa GPIO + I2C
+      - /dev/gpiomem:/dev/gpiomem    # Dostęp do GPIO
+      - /dev/i2c-1:/dev/i2c-1        # I2C dla Automation HAT
+      # SPI (jeśli używane przez HAT)
+      # - /dev/spidev0.0:/dev/spidev0.0
+
+      # === WARIANT B: GPIO bezpośrednie ===
+      # Jeśli nie używasz HAT, zakomentuj i2c i pozostaw tylko gpiomem
+      # - /dev/gpiomem:/dev/gpiomem
+
+    # Alternatywnie pełny dostęp (prostsze ale mniej bezpieczne):
     # privileged: true
 
     # Opcjonalnie: montowanie pendrive USB do eksportu danych
-    # Odkomentuj jeśli potrzebujesz:
     # volumes:
     #   - /media/usb:/media/usb

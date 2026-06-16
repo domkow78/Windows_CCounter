@@ -12,11 +12,12 @@ import asyncio
 import threading
 from pathlib import Path
 from datetime import datetime
+from typing import Union
 
 import yaml
 
 # Import modułów projektu
-from src.sensor import InductiveSensor
+from src.sensor import create_sensor_from_config, InductiveSensor, AutomationHATSensor
 from src.sensor.inductive_sensor import CycleEvent
 from src.data import CSVHandler, SessionManager
 from src.api import create_app, APIServer
@@ -124,7 +125,7 @@ class CycleCounterApp:
         self.logger = logging.getLogger(__name__)
         
         # Komponenty
-        self.sensor: InductiveSensor = None
+        self.sensor: Union[InductiveSensor, AutomationHATSensor] = None
         self.csv_handler: CSVHandler = None
         self.session_manager: SessionManager = None
         self.gui: CycleCounterGUI = None
@@ -155,15 +156,11 @@ class CycleCounterApp:
         self.logger.info(f"SessionManager zainicjalizowany, katalog: {data_config.get('data_dir', './data')}")
     
     def _init_sensor(self):
-        """Inicjalizacja czujnika"""
+        """Inicjalizacja czujnika na podstawie konfiguracji"""
         sensor_config = self.config.get("sensor", {})
         
-        self.sensor = InductiveSensor(
-            gpio_pin=sensor_config.get("gpio_pin", 17),
-            debounce_ms=sensor_config.get("debounce_ms", 50),
-            pull_up=sensor_config.get("pull_up", True),
-            active_low=sensor_config.get("active_low", True)
-        )
+        # Użyj factory do tworzenia czujnika (GPIO lub Automation HAT)
+        self.sensor = create_sensor_from_config(sensor_config)
         
         # Licznik cykli sensora zaczyna od 0
         # Każda sesja ma własny licznik w SessionManager
@@ -171,7 +168,8 @@ class CycleCounterApp:
         # Zarejestruj callback zapisu cykli
         self.sensor.register_callback(self._on_cycle_complete)
         
-        self.logger.info("Czujnik zainicjalizowany")
+        backend = sensor_config.get("hardware_backend", "gpio")
+        self.logger.info(f"Czujnik zainicjalizowany (backend: {backend})")
     
     def _on_cycle_complete(self, event: CycleEvent):
         """Callback wywoływany po zakończeniu cyklu"""

@@ -1,10 +1,20 @@
 # Konfiguracja systemu Windows_CCounter dla Docker/Raspberry Pi
-# Ten plik jest używany w kontenerze - GUI domyślnie wyłączone
+# Ten plik jest używany w kontenerze - GUI Tkinter wyłączone, Web UI włączone
 
 sensor:
+  # Wybór backendu: "gpio" (bezpośrednie) lub "automationhat" (Automation HAT Mini)
+  hardware_backend: "automationhat"
+  #hardware_backend: "gpio"
+
+  # Ustawienia dla bezpośredniego GPIO
   gpio_pin: 17              # Numer pinu GPIO dla czujnika indukcyjnego
-  debounce_ms: 50           # Czas debouncingu w milisekundach
   pull_up: true             # Włącz wewnętrzny pull-up rezystor
+
+  # Ustawienia dla Automation HAT Mini
+  automation_hat_input: "one"  # Które wejście HAT: "one", "two" lub "three"
+
+  # Wspólne ustawienia
+  debounce_ms: 50           # Czas debouncingu w milisekundach
   active_low: true          # Czujnik aktywny stanem niskim (NPN)
 
 data:
@@ -19,11 +29,16 @@ api:
   enable_cors: true
 
 gui:
-  enabled: false            # WYŁĄCZONE w kontenerze Docker
+  enabled: false            # WYŁĄCZONE w kontenerze Docker (brak ekranu)
   fullscreen: false
   window_width: 800
   window_height: 600
   refresh_interval_ms: 500
+
+web:
+  enabled: true             # Web UI dostępny przez przeglądarkę
+  host: "0.0.0.0"
+  port: 8080
 
 usb:
   mount_path: "/media/usb"
