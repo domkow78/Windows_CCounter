@@ -6,6 +6,8 @@ System pomiarowy do zliczania cykli otwarcia/zamknięcia okien suszarki dla P.K.
 
 System oparty na **Raspberry Pi** służący do monitorowania i rejestrowania cykli pracy siłownika sterującego oknami suszarki. System automatycznie zlicza cykle otwarcia-zamknięcia oraz mierzy czas trwania każdego cyklu. Aplikacja udostępnia lokalne GUI **Tkinter**, interfejs webowy **NiceGUI** oraz REST API **FastAPI**.
 
+Docelowy wariant sprzętowy zakłada użycie nakładki **Automation HAT Mini** jako warstwy wejściowej dla czujnika. Bezpośrednie wejście **GPIO** pozostaje wspieraną alternatywą. Zalecanym sposobem uruchamiania w produkcji jest **start natywny na Raspberry Pi**, ponieważ pozwala wykorzystać lokalny interfejs **Tkinter GUI** wraz z Web UI i API.
+
 ## 🎯 Założenia funkcjonalne
 
 ### Pomiar cykli
@@ -47,7 +49,7 @@ Dane zapisywane są do pliku **CSV** zawierającego:
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
 │  │   Czujnik    │───▶│   Moduł      │───▶│   Zapis      │  │
 │  │  Indukcyjny  │    │   Pomiarowy  │    │   CSV        │  │
-│  │   (GPIO)     │    │              │    │              │  │
+│  │ (HAT / GPIO) │    │              │    │              │  │
 │  └──────────────┘    └──────────────┘    └──────────────┘  │
 │                              │                              │
 │                              ▼                              │
@@ -68,8 +70,8 @@ Dane zapisywane są do pliku **CSV** zawierającego:
 
 ### 1. Moduł czujnika indukcyjnego (wieloplatformowy)
 - **Obsługa dwóch backendów sprzętowych:**
-  - GPIO bezpośrednie (domyślnie) - `InductiveSensor`
-  - Automation HAT Mini (zalecane) - `AutomationHATSensor` z wejściem IN1
+  - Automation HAT Mini (wariant docelowy) - `AutomationHATSensor` z wejściem IN1
+  - GPIO bezpośrednie (wariant alternatywny) - `InductiveSensor`
 - Nasłuchiwanie sygnałów z detektorem zmian stanu
 - Pomiar czasu między impulsami (rising/falling edge)
 - Obsługa debouncingu sygnału
@@ -113,10 +115,15 @@ Dane zapisywane są do pliku **CSV** zawierającego:
 ### Wymagane komponenty
 - **Raspberry Pi** (3B+/4/5)
 - **Czujnik indukcyjny** (NPN/PNP, 3-przewodowy)
-- **Pimoroni Automation HAT Mini** - zalecana nakładka wejściowa dla czujnika
+- **Pimoroni Automation HAT Mini** - rekomendowana nakładka wejściowa
 - **Wyświetlacz LCD** z obsługą dotyku (np. 3.5"/5"/7")
 - Zasilacz 5V
 - Karta microSD
+
+### Rekomendowany układ sprzętowy
+- **Wariant podstawowy:** czujnik → **Automation HAT Mini** → Raspberry Pi
+- **Wariant alternatywny:** czujnik → **GPIO Raspberry Pi**
+- **Wariant testowy:** tryb symulacji bez fizycznego wejścia
 
 ### Podłączenie czujnika
 ```
@@ -129,7 +136,7 @@ Czujnik E2S-H4N1 5V         Automation HAT Mini
 
 > ⚠️ **Uwaga:** W docelowej instalacji zalecane jest użycie nakładki **Automation HAT Mini**
 > jako interfejsu dla czujnika **E2S-H4N1 4 mm 5V**. Pozwala to uniknąć bezpośredniego
-> podawania sygnału na GPIO Raspberry Pi i upraszcza okablowanie.
+> podawania sygnału na GPIO Raspberry Pi, upraszcza okablowanie i lepiej pasuje do aktualnego kierunku rozwoju projektu.
 
 > ℹ️ Szczegóły wariantu z nakładką opisano w pliku `pimoroni.md`.
 
@@ -175,7 +182,46 @@ Windows_CCounter/
 
 ## 🚀 Instalacja i uruchomienie
 
-### Windows (PowerShell)
+### Raspberry Pi - uruchomienie natywne (zalecane)
+
+To jest **podstawowy sposób uruchamiania** aplikacji. Dzięki temu wariantowi dostępne są jednocześnie:
+
+- lokalne GUI **Tkinter** na ekranie dotykowym,
+- webowy interfejs **NiceGUI**,
+- REST API **FastAPI**.
+
+```bash
+# Klonowanie repozytorium
+git clone https://github.com/user/Windows_CCounter.git
+cd Windows_CCounter
+
+# Utworzenie środowiska wirtualnego
+python3 -m venv venv
+
+# Aktywacja środowiska
+source venv/bin/activate
+
+# Instalacja zależności podstawowych
+pip install -r requirements.txt
+
+# Jeśli używasz wariantu GPIO
+pip install RPi.GPIO
+
+# Jeśli używasz wariantu Automation HAT Mini
+sudo apt install python3-automationhat
+# lub alternatywnie:
+# pip install automationhat
+
+# Uruchomienie natywne
+python main.py
+
+# Dostęp po uruchomieniu
+# Tkinter GUI: ekran lokalny Raspberry Pi
+# Web UI:      http://<IP_RPI>:8080
+# REST API:    http://<IP_RPI>:8000
+```
+
+### Windows / PC - uruchomienie testowe
 ```powershell
 # Klonowanie repozytorium
 git clone https://github.com/user/Windows_CCounter.git
@@ -198,43 +244,7 @@ python main.py
 # REST API: http://localhost:8000
 ```
 
-### Linux / Raspberry Pi
-```bash
-# Klonowanie repozytorium
-git clone https://github.com/user/Windows_CCounter.git
-cd Windows_CCounter
-
-# Utworzenie środowiska wirtualnego
-python3 -m venv venv
-
-# Aktywacja środowiska
-source venv/bin/activate
-
-# Instalacja zależności podstawowych
-pip install -r requirements.txt
-
-# Instalacja GPIO (tylko na Raspberry Pi)
-pip install RPi.GPIO
-
-# Instalacja Automation HAT Mini (jeśli używasz HAT zamiast GPIO)
-# Opcja 1: Z repozytorium pimoroni
-sudo apt install python3-automationhat
-# lub
-pip install automationhat
-
-# Opcja 2: Instalacja ze źródła
-git clone https://github.com/pimoroni/automation-hat.git
-cd automation-hat
-./install.sh
-cd ../Windows_CCounter
-
-# Uruchomienie
-python main.py
-
-# Dostęp po uruchomieniu
-# Web UI:  http://<IP_RPI>:8080
-# REST API: http://<IP_RPI>:8000
-```
+Ten wariant jest przeznaczony głównie do developmentu i testów. Na Windows aplikacja działa zwykle w **trybie symulacji**.
 
 ## ⚙️ Konfiguracja
 
@@ -244,14 +254,14 @@ Edytuj plik `config.yaml`:
 
 ```yaml
 sensor:
-  # Wybór backendu: "gpio" lub "automationhat"
-  hardware_backend: "gpio"
+  # Wybór backendu: "automationhat" (zalecane) lub "gpio" (alternatywa)
+  hardware_backend: "automationhat"
   
-  # Dla GPIO bezpośredniego:
+  # Dla GPIO bezpośredniego (alternatywa):
   gpio_pin: 17              # Numer pinu GPIO
   pull_up: true
   
-  # Dla Automation HAT Mini:
+  # Dla Automation HAT Mini (wariant podstawowy):
   automation_hat_input: "one"  # "one", "two" lub "three"
   
   # Wspólne ustawienia:
@@ -290,13 +300,14 @@ Po uruchomieniu `python main.py` aplikacja standardowo startuje w trzech warstwa
 - **NiceGUI Web UI** na porcie `8080`
 - **Tkinter GUI** lokalnie, jeśli dostępny jest ekran i `gui.enabled=true`
 
+Natywne uruchomienie na Raspberry Pi jest wariantem preferowanym, ponieważ pozwala równocześnie używać lokalnego GUI **Tkinter** oraz zdalnego Web UI.
+
 Na Windows system zwykle działa w **trybie symulacji**, więc można testować działanie bez GPIO.
 
 Na Raspberry Pi zalecany wariant produkcyjny zakłada podłączenie czujnika
 **E2S-H4N1 4 mm 5V** do wejścia **IN1** nakładki **Automation HAT Mini**.
 
-Obecna implementacja repozytorium nadal wykorzystuje bezpośrednią obsługę GPIO jako ścieżkę bazową.
-Wariant z **Automation HAT Mini / IN1** jest opisanym i zalecanym kierunkiem integracji sprzętowej.
+Bezpośrednia obsługa **GPIO** pozostaje wspieraną alternatywą dla instalacji, w których HAT nie jest używany.
 
 ## 📦 Zależności
 
@@ -313,10 +324,10 @@ PyYAML>=6.0.1
 nicegui>=1.4.0
 python-multipart>=0.0.6
 
-# Raspberry Pi GPIO (zainstaluj ręcznie na Raspberry Pi)
+# Raspberry Pi GPIO (opcjonalnie, tylko dla wariantu GPIO)
 # RPi.GPIO>=0.7.1
 
-# Opcjonalnie: biblioteka nakładki Automation HAT Mini
+# Opcjonalnie: biblioteka nakładki Automation HAT Mini (wariant zalecany)
 # automationhat
 
 # GUI - tkinter jest wbudowany w Python
@@ -327,10 +338,12 @@ python-multipart>=0.0.6
 Plik `config.yaml`:
 ```yaml
 sensor:
-  gpio_pin: 17              # Numer pinu GPIO dla czujnika indukcyjnego
-  debounce_ms: 50           # Czas debouncingu w milisekundach
-  pull_up: true             # Włącz wewnętrzny pull-up rezystor
-  active_low: true          # Czujnik aktywny stanem niskim (NPN)
+  hardware_backend: "automationhat"   # zalecane: "automationhat", alternatywa: "gpio"
+  gpio_pin: 17                        # używane tylko dla backendu GPIO
+  pull_up: true                       # używane tylko dla backendu GPIO
+  automation_hat_input: "one"        # używane dla Automation HAT Mini
+  debounce_ms: 50                     # wspólne ustawienie debouncingu
+  active_low: true                    # czujnik aktywny stanem niskim (NPN)
 
 data:
   data_dir: "./data"        # Katalog na pliki sesji (session_*.csv)
