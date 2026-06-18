@@ -373,14 +373,6 @@ class CycleCounterGUI:
         # Rozpocznij sesję
         session = self.session_manager.start_session()
         
-        # Aktualizuj UI
-        self._start_btn.config(state=tk.DISABLED, bg=self.COLOR_STOPPED)
-        self._stop_btn.config(state=tk.NORMAL, bg=self.COLOR_ERROR)
-        self._session_status_label.config(
-            text=f"🔴 REC: {session.csv_filename}",
-            fg=self.COLOR_RECORDING
-        )
-        
         # Reset licznika w GUI dla nowej sesji
         self._cycle_count_label.config(text="0")
 
@@ -409,14 +401,6 @@ class CycleCounterGUI:
         # Zakończ sesję
         session = self.session_manager.stop_session()
         
-        # Aktualizuj UI
-        self._start_btn.config(state=tk.NORMAL, bg=self.COLOR_SUCCESS)
-        self._stop_btn.config(state=tk.DISABLED, bg=self.COLOR_STOPPED)
-        self._session_status_label.config(
-            text="⏹ STOP",
-            fg=self.COLOR_STOPPED
-        )
-        
         # Pokaż podsumowanie
         if session:
             messagebox.showinfo(
@@ -434,6 +418,11 @@ class CycleCounterGUI:
             return
         
         try:
+            # Synchronizuj przyciski ze rzeczywistym stanem sesji
+            session_active = self.session_manager.is_session_active if self.session_manager else False
+            self._start_btn.config(state=tk.DISABLED if session_active else tk.NORMAL)
+            self._stop_btn.config(state=tk.NORMAL if session_active else tk.DISABLED)
+            
             # Aktualizuj licznik cykli - z sesji jeśli aktywna, inaczej zapamiętana wartość
             if self.session_manager and self.session_manager.is_session_active:
                 cycle_count = self.session_manager.session_cycle_count
