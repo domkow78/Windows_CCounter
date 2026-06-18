@@ -158,7 +158,7 @@ class CycleCounterGUI:
         # Tytuł
         title_label = tk.Label(
             header_frame,
-            text="🏭 Windows CCounter",
+            text="Windows CCounter",
             font=("Arial", 24, "bold"),
             fg=self.COLOR_FG,
             bg=self.COLOR_BG
@@ -259,7 +259,7 @@ class CycleCounterGUI:
         
         tk.Label(
             chart_frame,
-            text="📈 Trend czasów - ostatnie 200 cykli",
+            text="📈 Trend czasów - ostatnie 500 cykli",
             font=("Arial", 12, "bold"),
             fg=self.COLOR_FG,
             bg=self.COLOR_BG
@@ -329,7 +329,7 @@ class CycleCounterGUI:
         # Przycisk eksportu USB
         usb_btn = tk.Button(
             buttons_frame,
-            text="💾 Eksport USB",
+            text="Eksport USB",
             font=("Arial", 12),
             bg=self.COLOR_ACCENT,
             fg=self.COLOR_FG,
@@ -475,16 +475,16 @@ class CycleCounterGUI:
             self._root.after(self.refresh_interval_ms, self._update_display)
     
     def _update_trend_chart(self):
-        """Aktualizuj wykres trendu czasów ostatnich 200 cykli"""
+        """Aktualizuj wykres trendu czasów ostatnich 500 cykli"""
         if not self._trend_canvas:
             return
 
         # Pobierz rekordy z sesji lub csv_handler (fallback)
         records = []
         if self.session_manager:
-            records = self.session_manager.get_last_n_records(200)
+            records = self.session_manager.get_last_n_records(500)
         elif self.csv_handler:
-            records = self.csv_handler.get_last_n_records(200)
+            records = self.csv_handler.get_last_n_records(500)
 
         self._trend_canvas.delete("all")
 
