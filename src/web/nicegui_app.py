@@ -270,7 +270,6 @@ class WebUI:
                     with ui.column():
                         ui.label('Min / Max').classes('text-gray-500 text-sm')
                         ui.label(min_max).classes('text-xl font-bold')
-                ui.button('Pobierz sesję', on_click=self._download_current_session).props('icon=download color=primary').classes('mt-0')
     
     def _create_history_page(self):
         """Strona historii"""
@@ -391,26 +390,36 @@ class WebUI:
     async def _export_all(self):
         """Eksportuj wszystkie dane"""
         ui.notify('Funkcja eksportu w przygotowaniu...', type='info')
+
+    async def _ask_download_filename(self, default_name: str) -> str | None:
+        """Pokaż dialog i zwróć nazwę pliku do pobrania (lub None jeśli anulowano)."""
+        with ui.dialog() as dialog, ui.card().classes('min-w-96'):
+            ui.label('Nazwa pliku do pobrania').classes('text-lg font-bold')
+            filename_input = ui.input('Nazwa pliku', value=default_name).classes('w-full')
+
+            with ui.row().classes('w-full justify-end gap-2'):
+                ui.button('Anuluj', on_click=lambda: dialog.submit(None)).props('flat')
+                ui.button('Pobierz', on_click=lambda: dialog.submit(filename_input.value)).props('color=primary')
+
+        result = await dialog
+        if result is None:
+            return None
+
+        filename = str(result).strip()
+        if not filename:
+            return default_name
+        if not filename.lower().endswith('.csv'):
+            filename = f'{filename}.csv'
+        return filename
     
     async def _download_file(self, filepath):
         """Pobierz plik"""
-        ui.download(str(filepath))
-
-    async def _download_current_session(self):
-        """Pobierz plik aktualnej sesji"""
-        if not self.session_manager:
-            ui.notify('Brak managera sesji', type='negative')
-            return
-        
-        csv_path = self.session_manager.get_csv_path()
-        if not csv_path or not csv_path.exists():
-            ui.notify('Brak aktywnej sesji lub plik nie istnieje', type='warning')
+        suggested_name = filepath.name if hasattr(filepath, 'name') else 'session.csv'
+        filename = await self._ask_download_filename(suggested_name)
+        if filename is None:
             return
 
-        session = self.session_manager.current_session
-        filename = session.csv_filename if session else csv_path.name
-
-        ui.download(str(csv_path), filename=filename)
+        ui.download(str(filepath), filename=filename)
         ui.notify(f'Pobieranie: {filename}', type='positive')
 
 
