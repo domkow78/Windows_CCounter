@@ -76,6 +76,9 @@ class CycleCounterGUI:
         
         # Zapamiętana wartość licznika po STOP
         self._last_session_cycle_count = 0
+
+        # Licznik cykli przy ostatnim rysowaniu wykresu (żeby nie przerysowywać co 500ms)
+        self._last_chart_cycle_count = -1
         
         # Widgety do aktualizacji
         self._cycle_count_label: Optional[tk.Label] = None
@@ -381,7 +384,8 @@ class CycleCounterGUI:
         # Reset licznika w GUI dla nowej sesji
         self._cycle_count_label.config(text="0")
 
-        # Wyczyść wykres trendu
+        # Wyczyść wykres trendu i zresetuj licznik cache
+        self._last_chart_cycle_count = -1
         if self._trend_canvas:
             self._trend_canvas.delete("all")
         if self._trend_stats_label:
@@ -478,6 +482,12 @@ class CycleCounterGUI:
         """Aktualizuj wykres trendu czasów ostatnich 500 cykli"""
         if not self._trend_canvas:
             return
+
+        # Przerysuj tylko gdy liczba cykli się zmieniła
+        current_count = self.session_manager.session_cycle_count if self.session_manager else 0
+        if current_count == self._last_chart_cycle_count:
+            return
+        self._last_chart_cycle_count = current_count
 
         # Pobierz rekordy z sesji lub csv_handler (fallback)
         records = []

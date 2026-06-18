@@ -36,7 +36,6 @@ class WebUI:
         self._session_status_label = None
         self._sensor_status_label = None
         self._last_duration_label = None
-        self._cycles_table = None
         self._stats_card = None
         self._stats_total_cycles_label = None
         self._stats_avg_duration_label = None
@@ -48,6 +47,13 @@ class WebUI:
         self._min_duration_ms = 0.0
         self._max_duration_ms = 0.0
         self._last_cycle_duration_ms = None
+
+        # Elementy wykresu trendu (tworzone raz, aktualizowane in-place)
+        self._echart = None
+        self._chart_stats_label = None
+
+        # Licznik cykli przy ostatnim odświeżeniu wykresu
+        self._last_chart_cycle_count = -1
         
         # Timer do odświeżania
         self._refresh_timer = None
@@ -102,7 +108,7 @@ class WebUI:
                         ui.button('Symuluj cykl (3s)', on_click=lambda: self._simulate_cycle(3000)).props('icon=replay')
                         ui.button('5 cykli losowych', on_click=self._simulate_multiple_cycles).props('icon=auto_mode color=orange')
             
-            self._render_cycles_table()
+            self._create_trend_chart()
             
             self._render_stats_section()
         
@@ -158,29 +164,91 @@ class WebUI:
                     ui.label('Ostatni cykl').classes('text-gray-500 text-sm')
                     ui.label(last_duration).classes('text-2xl font-bold')
 
-    @ui.refreshable
-    def _render_cycles_table(self):
-        """Renderuj tabelę ostatnich cykli."""
-        rows = []
-        if self.session_manager:
-            for record in reversed(self.session_manager.get_last_n_records(10)):
-                rows.append({
-                    'nr': record.cycle_number,
-                    'timestamp': record.timestamp,
-                    'duration': f'{record.cycle_duration_ms:.0f} ms'
-                })
-
+    def _create_trend_chart(self):
+        """Utwórz panel wykresu trendu raz przy budowie strony."""
         with ui.card().classes('w-full'):
-            ui.label('Ostatnie cykle').classes('text-lg font-bold mb-2')
-            ui.table(
-                columns=[
-                    {'name': 'nr', 'label': '#', 'field': 'nr', 'align': 'left'},
-                    {'name': 'timestamp', 'label': 'Czas', 'field': 'timestamp', 'align': 'left'},
-                    {'name': 'duration', 'label': 'Czas trwania', 'field': 'duration', 'align': 'right'},
+            ui.label('Trend czasów - ostatnie 500 cykli').classes('text-lg font-bold mb-2')
+
+            self._echart = ui.echart({
+                'animation': True,
+                'animationDuration': 400,
+                'tooltip': {'trigger': 'axis'},
+                'grid': {'left': 50, 'right': 20, 'top': 20, 'bottom': 35},
+                'xAxis': {
+                    'type': 'category',
+                    'boundaryGap': False,
+                    'data': [],
+                    'name': 'starsze → nowsze',
+                    'nameLocation': 'middle',
+                    'nameGap': 25,
+                    'axisLabel': {'show': False},
+                },
+                'yAxis': {
+                    'type': 'value',
+                    'name': 'ms',
+                    'scale': True,
+                },
+                'series': [
+                    {
+                        'name': 'czas cyklu',
+                        'type': 'line',
+                        'data': [],
+                        'showSymbol': False,
+                        'lineStyle': {'width': 2, 'color': '#16c79a'},
+                        'itemStyle': {'color': '#16c79a'},
+                    },
+                    {
+                        'name': 'srednia',
+                        'type': 'line',
+                        'data': [],
+                        'showSymbol': False,
+                        'lineStyle': {'width': 1, 'type': 'dashed', 'color': '#f9a825'},
+                        'itemStyle': {'color': '#f9a825'},
+                    },
                 ],
-                rows=rows,
-                row_key='nr'
-            ).classes('w-full')
+            }).classes('w-full h-64')
+
+            self._chart_stats_label = ui.label(
+                'Brak danych - uruchom sesję i wykonaj cykle'
+            ).classes('text-sm text-gray-500 font-mono')
+
+    def _update_trend_chart_data(self):
+        """Zaktualizuj dane wykresu in-place przez ECharts setOption (z animacją)."""
+        if not self._echart:
+            return
+
+        current_count = self.session_manager.session_cycle_count if self.session_manager else 0
+        if current_count == self._last_chart_cycle_count:
+            return
+        self._last_chart_cycle_count = current_count
+
+        records = self.session_manager.get_last_n_records(500) if self.session_manager else []
+        durations = [float(record.cycle_duration_ms) for record in records]
+
+        if not durations:
+            if self._chart_stats_label:
+                self._chart_stats_label.set_text('Brak danych - uruchom sesję i wykonaj cykle')
+            return
+
+        avg_val = sum(durations) / len(durations)
+        min_val = min(durations)
+        max_val = max(durations)
+        n = len(durations)
+
+        # Aktualizacja in-place — ECharts animuje tylko zmienioną część
+        self._echart.run_chart_method('setOption', {
+            'xAxis': {'data': list(range(1, n + 1))},
+            'series': [
+                {'data': durations},
+                {'data': [round(avg_val, 1)] * n},
+            ],
+        })
+
+        if self._chart_stats_label:
+            self._chart_stats_label.set_text(
+                f'N={n} | min: {min_val:.0f} ms | avg: {avg_val:.0f} ms | '
+                f'max: {max_val:.0f} ms | ostatni: {durations[-1]:.0f} ms'
+            )
 
     @ui.refreshable
     def _render_stats_section(self):
@@ -399,7 +467,7 @@ class WebUI:
     def _refresh_ui(self):
         """Odśwież elementy UI"""
         self._render_top_cards.refresh()
-        self._render_cycles_table.refresh()
+        self._update_trend_chart_data()
         self._render_stats_section.refresh()
     
     async def _export_all(self):
