@@ -83,7 +83,8 @@ class CycleCounterGUI:
         self._sensor_status_label: Optional[tk.Label] = None
         self._session_status_label: Optional[tk.Label] = None
         self._timestamp_label: Optional[tk.Label] = None
-        self._history_tree: Optional[ttk.Treeview] = None
+        self._trend_canvas: Optional[tk.Canvas] = None
+        self._trend_stats_label: Optional[tk.Label] = None
         self._start_btn: Optional[tk.Button] = None
         self._stop_btn: Optional[tk.Button] = None
     
@@ -191,12 +192,12 @@ class CycleCounterGUI:
         
         # Licznik cykli
         cycle_frame = tk.Frame(display_frame, bg=self.COLOR_ACCENT)
-        cycle_frame.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=20, pady=20)
+        cycle_frame.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=20, pady=10)
         
         tk.Label(
             cycle_frame,
             text="LICZBA CYKLI",
-            font=("Arial", 14),
+            font=("Arial", 12),
             fg=self.COLOR_FG,
             bg=self.COLOR_ACCENT
         ).pack()
@@ -204,7 +205,8 @@ class CycleCounterGUI:
         self._cycle_count_label = tk.Label(
             cycle_frame,
             text="0",
-            font=("Arial", 72, "bold"),
+            font=("Arial", 36, "bold"),
+            width=6,
             fg=self.COLOR_SUCCESS,
             bg=self.COLOR_ACCENT
         )
@@ -212,16 +214,16 @@ class CycleCounterGUI:
         
         # Separator
         separator = tk.Frame(display_frame, bg=self.COLOR_FG, width=2)
-        separator.pack(side=tk.LEFT, fill=tk.Y, pady=20)
+        separator.pack(side=tk.LEFT, fill=tk.Y, pady=10)
         
         # Czas ostatniego cyklu
         duration_frame = tk.Frame(display_frame, bg=self.COLOR_ACCENT)
-        duration_frame.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=20, pady=20)
+        duration_frame.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=20, pady=10)
         
         tk.Label(
             duration_frame,
             text="OSTATNI CYKL",
-            font=("Arial", 14),
+            font=("Arial", 12),
             fg=self.COLOR_FG,
             bg=self.COLOR_ACCENT
         ).pack()
@@ -229,7 +231,8 @@ class CycleCounterGUI:
         self._last_duration_label = tk.Label(
             duration_frame,
             text="--- ms",
-            font=("Arial", 48, "bold"),
+            font=("Arial", 24, "bold"),
+            width=9,
             fg=self.COLOR_FG,
             bg=self.COLOR_ACCENT
         )
@@ -239,6 +242,7 @@ class CycleCounterGUI:
             duration_frame,
             text="",
             font=("Arial", 10),
+            width=19,
             fg=self.COLOR_FG,
             bg=self.COLOR_ACCENT
         )
@@ -249,37 +253,37 @@ class CycleCounterGUI:
         bottom_frame = tk.Frame(parent, bg=self.COLOR_BG)
         bottom_frame.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        # Lewa strona - historia
-        history_frame = tk.Frame(bottom_frame, bg=self.COLOR_BG)
-        history_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        # Lewa strona - wykres trendu
+        chart_frame = tk.Frame(bottom_frame, bg=self.COLOR_BG)
+        chart_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
         tk.Label(
-            history_frame,
-            text="📜 Ostatnie cykle",
+            chart_frame,
+            text="📈 Trend czasów - ostatnie 200 cykli",
             font=("Arial", 12, "bold"),
             fg=self.COLOR_FG,
             bg=self.COLOR_BG
         ).pack(anchor=tk.W)
-        
-        # Treeview z historią
-        columns = ("nr", "czas", "trwanie")
-        self._history_tree = ttk.Treeview(
-            history_frame,
-            columns=columns,
-            show="headings",
-            height=6,
-            style="Custom.Treeview"
+
+        self._trend_canvas = tk.Canvas(
+            chart_frame,
+            bg="#132743",
+            highlightthickness=1,
+            highlightbackground="#2c4f7c"
         )
-        
-        self._history_tree.heading("nr", text="#")
-        self._history_tree.heading("czas", text="Czas")
-        self._history_tree.heading("trwanie", text="Trwanie (ms)")
-        
-        self._history_tree.column("nr", width=50, anchor=tk.CENTER)
-        self._history_tree.column("czas", width=150, anchor=tk.CENTER)
-        self._history_tree.column("trwanie", width=100, anchor=tk.CENTER)
-        
-        self._history_tree.pack(fill=tk.BOTH, expand=True, pady=5)
+        self._trend_canvas.pack(fill=tk.BOTH, expand=True, pady=(5, 2))
+
+        self._trend_stats_label = tk.Label(
+            chart_frame,
+            text="Brak danych",
+            font=("Courier New", 10),
+            width=74,
+            anchor="w",
+            justify=tk.LEFT,
+            fg=self.COLOR_FG,
+            bg=self.COLOR_BG
+        )
+        self._trend_stats_label.pack(anchor=tk.W, pady=(2, 0))
         
         # Prawa strona - przyciski
         buttons_frame = tk.Frame(bottom_frame, bg=self.COLOR_BG)
@@ -337,21 +341,6 @@ class CycleCounterGUI:
         )
         usb_btn.pack(pady=3)
         
-        # Przycisk statystyk
-        stats_btn = tk.Button(
-            buttons_frame,
-            text="📊 Statystyki",
-            font=("Arial", 12),
-            bg=self.COLOR_ACCENT,
-            fg=self.COLOR_FG,
-            activebackground=self.COLOR_SUCCESS,
-            activeforeground=self.COLOR_FG,
-            width=15,
-            height=1,
-            command=self._on_show_stats
-        )
-        stats_btn.pack(pady=3)
-        
         # Przycisk zamknięcia (tylko jeśli nie fullscreen)
         if not self.fullscreen:
             close_btn = tk.Button(
@@ -391,11 +380,12 @@ class CycleCounterGUI:
         
         # Reset licznika w GUI dla nowej sesji
         self._cycle_count_label.config(text="0")
-        
-        # Wyczyść historię
-        if self._history_tree:
-            for item in self._history_tree.get_children():
-                self._history_tree.delete(item)
+
+        # Wyczyść wykres trendu
+        if self._trend_canvas:
+            self._trend_canvas.delete("all")
+        if self._trend_stats_label:
+            self._trend_stats_label.config(text="Brak danych")
         
         logger.info(f"Sesja {session.session_id} rozpoczęta przez GUI")
     
@@ -474,8 +464,8 @@ class CycleCounterGUI:
                 )
                 self._timestamp_label.config(text=latest.timestamp)
             
-            # Aktualizuj historię
-            self._update_history()
+            # Aktualizuj wykres trendu
+            self._update_trend_chart()
         
         except Exception as e:
             logger.error(f"Błąd aktualizacji GUI: {e}")
@@ -484,32 +474,155 @@ class CycleCounterGUI:
         if self._is_running:
             self._root.after(self.refresh_interval_ms, self._update_display)
     
-    def _update_history(self):
-        """Aktualizuj tabelę historii"""
-        if not self._history_tree:
+    def _update_trend_chart(self):
+        """Aktualizuj wykres trendu czasów ostatnich 200 cykli"""
+        if not self._trend_canvas:
             return
-        
-        # Pobierz rekordy z sesji lub csv_handler
+
+        # Pobierz rekordy z sesji lub csv_handler (fallback)
         records = []
-        if self.session_manager and self.session_manager.is_session_active:
-            records = self.session_manager.get_last_n_records(10)
+        if self.session_manager:
+            records = self.session_manager.get_last_n_records(200)
         elif self.csv_handler:
-            records = self.csv_handler.get_last_n_records(10)
-        
-        if not records:
+            records = self.csv_handler.get_last_n_records(200)
+
+        self._trend_canvas.delete("all")
+
+        width = self._trend_canvas.winfo_width()
+        height = self._trend_canvas.winfo_height()
+
+        # Canvas jeszcze nie ma wymiarów przy pierwszym renderze
+        if width < 50 or height < 50:
             return
-        
-        # Wyczyść
-        for item in self._history_tree.get_children():
-            self._history_tree.delete(item)
-        
-        # Dodaj ostatnie rekordy
-        for record in reversed(records):  # Od najnowszego
-            self._history_tree.insert("", tk.END, values=(
-                record.cycle_number,
-                record.timestamp,
-                f"{record.cycle_duration_ms:.0f}"
-            ))
+
+        if not records:
+            self._trend_canvas.create_text(
+                width / 2,
+                height / 2,
+                text="Brak danych - uruchom sesję i wykonaj cykle",
+                fill=self.COLOR_FG,
+                font=("Arial", 12)
+            )
+            if self._trend_stats_label:
+                self._trend_stats_label.config(text="Brak danych")
+            return
+
+        durations = [float(record.cycle_duration_ms) for record in records]
+        min_val = min(durations)
+        max_val = max(durations)
+
+        # Zabezpieczenie dla stałej wartości
+        if min_val == max_val:
+            min_val -= 1.0
+            max_val += 1.0
+
+        avg_val = sum(durations) / len(durations)
+
+        left_margin = 52
+        right_margin = 16
+        top_margin = 12
+        bottom_margin = 26
+
+        plot_w = max(1, width - left_margin - right_margin)
+        plot_h = max(1, height - top_margin - bottom_margin)
+
+        # Siatka pozioma + etykiety osi Y
+        grid_lines = 4
+        for i in range(grid_lines + 1):
+            y = top_margin + (plot_h * i / grid_lines)
+            value = max_val - ((max_val - min_val) * i / grid_lines)
+
+            self._trend_canvas.create_line(
+                left_margin,
+                y,
+                width - right_margin,
+                y,
+                fill="#2c4f7c"
+            )
+            self._trend_canvas.create_text(
+                left_margin - 6,
+                y,
+                text=f"{value:.0f}",
+                fill=self.COLOR_FG,
+                font=("Arial", 9),
+                anchor="e"
+            )
+
+        # Osie
+        self._trend_canvas.create_line(
+            left_margin,
+            top_margin,
+            left_margin,
+            height - bottom_margin,
+            fill=self.COLOR_FG,
+            width=1
+        )
+        self._trend_canvas.create_line(
+            left_margin,
+            height - bottom_margin,
+            width - right_margin,
+            height - bottom_margin,
+            fill=self.COLOR_FG,
+            width=1
+        )
+
+        # Punkty serii
+        n = len(durations)
+        points = []
+        for idx, value in enumerate(durations):
+            x = left_margin + (plot_w * idx / max(1, n - 1))
+            y_norm = (value - min_val) / (max_val - min_val)
+            y = top_margin + (plot_h * (1 - y_norm))
+            points.extend([x, y])
+
+        # Linia średniej
+        avg_norm = (avg_val - min_val) / (max_val - min_val)
+        avg_y = top_margin + (plot_h * (1 - avg_norm))
+        self._trend_canvas.create_line(
+            left_margin,
+            avg_y,
+            width - right_margin,
+            avg_y,
+            fill="#f9a825",
+            dash=(4, 3),
+            width=1
+        )
+
+        # Wykres trendu
+        if len(points) >= 4:
+            self._trend_canvas.create_line(
+                *points,
+                fill="#16c79a",
+                width=2,
+                smooth=False
+            )
+
+        # Podpis osi X
+        self._trend_canvas.create_text(
+            left_margin,
+            height - 8,
+            text="starsze",
+            fill=self.COLOR_FG,
+            font=("Arial", 9),
+            anchor="w"
+        )
+        self._trend_canvas.create_text(
+            width - right_margin,
+            height - 8,
+            text="nowsze",
+            fill=self.COLOR_FG,
+            font=("Arial", 9),
+            anchor="e"
+        )
+
+        if self._trend_stats_label:
+            self._trend_stats_label.config(
+                text=(
+                    f"N={n} | min: {min(durations):.0f} ms | "
+                    f"avg: {avg_val:.0f} ms | max: {max(durations):.0f} ms | "
+                    f"ostatni: {durations[-1]:.0f} ms"
+                )
+            )
     
     def _on_usb_export(self):
         """Obsługa przycisku eksportu USB"""
@@ -556,37 +669,6 @@ class CycleCounterGUI:
                 "Błąd eksportu",
                 "Nie udało się zapisać danych na pendrive."
             )
-    
-    def _on_show_stats(self):
-        """Pokaż okno statystyk"""
-        stats = None
-        session_info = ""
-        
-        if self.session_manager and self.session_manager.is_session_active:
-            stats = self.session_manager.get_session_statistics()
-            session = self.session_manager.current_session
-            if session:
-                session_info = f"\n📁 Sesja: {session.csv_filename}\n"
-        elif self.csv_handler:
-            stats = self.csv_handler.get_statistics()
-        
-        if not stats:
-            messagebox.showinfo("Statystyki", "Brak danych")
-            return
-        
-        stats_text = f"""
-📊 STATYSTYKI{session_info}
-Całkowita liczba cykli: {stats['total_cycles']}
-
-Średni czas cyklu: {stats['avg_duration_ms']:.1f} ms
-Minimalny czas: {stats['min_duration_ms']:.1f} ms
-Maksymalny czas: {stats['max_duration_ms']:.1f} ms
-
-Pierwszy cykl: {stats['first_cycle_time'] or 'brak'}
-Ostatni cykl: {stats['last_cycle_time'] or 'brak'}
-        """
-        
-        messagebox.showinfo("Statystyki", stats_text.strip())
     
     def _toggle_fullscreen(self):
         """Przełącz tryb pełnoekranowy"""
