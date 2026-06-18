@@ -186,16 +186,24 @@ sensor:
 
 ```yaml
 sensor:
-  gpio_pin: 17              # Pin GPIO czujnika
+  hardware_backend: "automationhat"   # wariant docelowy
+  automation_hat_input: "one"         # wejście IN1 na HAT
+  gpio_pin: 17                        # używane tylko przy backendzie GPIO
+  pull_up: true                       # używane tylko przy backendzie GPIO
   debounce_ms: 50
-  pull_up: true
-  active_low: true          # Dla czujnika NPN
+  active_low: true                    # Dla czujnika NPN
+  simulation_mode: false
 
 gui:
   enabled: true             # GUI włączone
   fullscreen: true          # Pełny ekran (produkcja)
   window_width: 800
   window_height: 480        # Rozdzielczość ekranu dotykowego
+
+web:
+  enabled: true             # Web UI dostępny w sieci lokalnej
+  host: "0.0.0.0"
+  port: 8080
 
 api:
   host: "0.0.0.0"           # Dostęp z sieci LAN
@@ -237,9 +245,8 @@ czujnikiem a Raspberry Pi, ponieważ:
 
 Bezpośrednie GPIO można traktować jako wariant uproszczony lub testowy.
 
-Aktualna baza kodu projektu nadal posiada bezpośrednią obsługę GPIO jako wariant podstawowy.
-Opis użycia **Automation HAT Mini / IN1** w tym dokumencie porządkuje docelową konfigurację
-sprzętową dla wdrożenia na Raspberry Pi.
+W aktualnej konfiguracji wdrożeniowej wariant z **Automation HAT Mini / IN1** należy traktować jako podstawowy,
+a bezpośrednie **GPIO** jako alternatywę dla prostszych lub testowych instalacji.
 
 ---
 
@@ -266,8 +273,11 @@ Uruchamianie GUI...
 ### Sprawdzenie API:
 
 ```bash
-# Health check
-curl http://localhost:8000/health
+# Status aplikacji
+curl http://localhost:8000/
+
+# Szczegółowy status systemu
+curl http://localhost:8000/api/status
 
 # Dokumentacja API (w przeglądarce)
 # http://<IP-raspberry>:8000/docs

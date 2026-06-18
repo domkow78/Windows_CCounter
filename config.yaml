@@ -1,20 +1,23 @@
 # Konfiguracja systemu Windows_CCounter
 
 sensor:
-  # Wybór backendu sprzętowego: "gpio" (GPIO bezpośrednie) lub "automationhat" (Automation HAT Mini)
+  # Wybór backendu sprzętowego:
+  # - "automationhat" = wariant zalecany / docelowy
+  # - "gpio" = wariant alternatywny
   hardware_backend: "automationhat"
-  #hardware_backend: "gpio"
+  # hardware_backend: "gpio"
   
-  # Ustawienia dla bezpośredniego GPIO
+  # Ustawienia dla bezpośredniego GPIO (tylko gdy hardware_backend="gpio")
   gpio_pin: 17              # Numer pinu GPIO dla czujnika indukcyjnego
   pull_up: true             # Włącz wewnętrzny pull-up rezystor
   
-  # Ustawienia dla Automation HAT Mini
+  # Ustawienia dla Automation HAT Mini (tylko gdy hardware_backend="automationhat")
   automation_hat_input: "one"  # Które wejście HAT: "one", "two" lub "three"
   
   # Wspólne ustawienia
   debounce_ms: 50           # Czas debouncingu w milisekundach
   active_low: true          # Czujnik aktywny stanem niskim (NPN)
+  simulation_mode: false    # Ustaw true do testów bez fizycznego wejścia
 
 data:
   data_dir: "./data"           # Katalog na pliki sesji (session_*.csv)
@@ -29,9 +32,9 @@ api:
 
 gui:
   enabled: true
-  fullscreen: false         # Ustaw na true dla produkcji
+  fullscreen: true          # Ustaw na true dla produkcji
   window_width: 800
-  window_height: 600        # Zwiększona wysokość dla wszystkich przycisków
+  window_height: 480        # Rozdzielczość ekranu dotykowego
   refresh_interval_ms: 500
 
 web:
