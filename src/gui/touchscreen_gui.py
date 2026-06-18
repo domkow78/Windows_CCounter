@@ -262,7 +262,7 @@ class CycleCounterGUI:
         
         tk.Label(
             chart_frame,
-            text="📈 Trend czasów - ostatnie 500 cykli",
+            text="Trend czasów - ostatnie 500 cykli",
             font=("Arial", 12, "bold"),
             fg=self.COLOR_FG,
             bg=self.COLOR_BG

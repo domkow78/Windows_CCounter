@@ -36,10 +36,6 @@ class WebUI:
         self._session_status_label = None
         self._sensor_status_label = None
         self._last_duration_label = None
-        self._stats_card = None
-        self._stats_total_cycles_label = None
-        self._stats_avg_duration_label = None
-        self._stats_min_max_label = None
 
         # Stan dashboardu
         self._total_cycles = 0
@@ -65,10 +61,6 @@ class WebUI:
         def main_page():
             self._create_main_page()
         
-        @ui.page('/stats')
-        def stats_page():
-            self._create_stats_page()
-        
         @ui.page('/history')
         def history_page():
             self._create_history_page()
@@ -87,7 +79,6 @@ class WebUI:
             with ui.row().classes('gap-2'):
                 ui.button('Dashboard', on_click=lambda: ui.navigate.to('/')).props('flat color=white')
                 ui.button('Historia', on_click=lambda: ui.navigate.to('/history')).props('flat color=white')
-                ui.button('Statystyki', on_click=lambda: ui.navigate.to('/stats')).props('flat color=white')
                 ui.button('Ustawienia', on_click=lambda: ui.navigate.to('/settings')).props('flat color=white')
     
     def _create_main_page(self):
@@ -281,65 +272,6 @@ class WebUI:
                         ui.label(min_max).classes('text-xl font-bold')
                 ui.button('Pobierz sesję', on_click=self._download_current_session).props('icon=download color=primary').classes('mt-0')
     
-    def _create_stats_page(self):
-        """Strona statystyk"""
-        self._create_header()
-        
-        with ui.column().classes('w-full max-w-4xl mx-auto p-4 gap-4'):
-            ui.label('📊 Statystyki').classes('text-2xl font-bold')
-            self._render_all_sessions_stats()
-            ui.timer(1.0, self._render_all_sessions_stats.refresh)
-
-    @ui.refreshable
-    def _render_all_sessions_stats(self):
-        """Renderuj statystyki ze wszystkich sesji."""
-        stats = self.session_manager.get_all_sessions_statistics() if self.session_manager else {
-            'total_sessions': 0,
-            'total_cycles': 0,
-            'avg_duration_ms': 0,
-            'min_duration_ms': 0,
-            'max_duration_ms': 0,
-            'first_cycle_time': None,
-            'last_cycle_time': None,
-        }
-
-        avg_duration = f"{stats['avg_duration_ms']:.0f} ms" if stats['total_cycles'] else '-- ms'
-        min_max = (
-            f"{stats['min_duration_ms']:.0f} / {stats['max_duration_ms']:.0f} ms"
-            if stats['total_cycles'] else '-- / -- ms'
-        )
-        first_cycle_time = stats['first_cycle_time'] or '--'
-        last_cycle_time = stats['last_cycle_time'] or '--'
-
-        with ui.card().classes('w-full'):
-            ui.label('Statystyki wszystkich sesji').classes('text-lg font-bold mb-4')
-
-            with ui.row().classes('w-full gap-4'):
-                with ui.card().classes('flex-1 bg-blue-50'):
-                    ui.label('Suma cykli').classes('text-gray-600')
-                    ui.label(str(stats['total_cycles'])).classes('text-3xl font-bold text-blue-600')
-
-                with ui.card().classes('flex-1 bg-green-50'):
-                    ui.label('Średni czas cyklu').classes('text-gray-600')
-                    ui.label(avg_duration).classes('text-3xl font-bold text-green-600')
-
-                with ui.card().classes('flex-1 bg-orange-50'):
-                    ui.label('Liczba sesji').classes('text-gray-600')
-                    ui.label(str(stats['total_sessions'])).classes('text-3xl font-bold text-orange-600')
-
-            with ui.row().classes('w-full gap-4 mt-4'):
-                with ui.card().classes('flex-1'):
-                    ui.label('Min / Max').classes('text-gray-500 text-sm')
-                    ui.label(min_max).classes('text-xl font-bold')
-
-                with ui.card().classes('flex-1'):
-                    ui.label('Pierwszy cykl').classes('text-gray-500 text-sm')
-                    ui.label(first_cycle_time).classes('text-xl font-bold')
-
-                with ui.card().classes('flex-1'):
-                    ui.label('Ostatni cykl').classes('text-gray-500 text-sm')
-                    ui.label(last_cycle_time).classes('text-xl font-bold')
-    
     def _create_history_page(self):
         """Strona historii"""
         self._create_header()
@@ -366,20 +298,6 @@ class WebUI:
                 ui.label('Konfiguracja systemu').classes('text-lg font-bold mb-4')
                 
                 with ui.column().classes('gap-4'):
-                    ui.label('Czujnik').classes('font-bold')
-                    with ui.row().classes('gap-4'):
-                        ui.number('GPIO Pin', value=17, min=0, max=27).classes('w-32')
-                        ui.number('Debounce (ms)', value=50, min=10, max=500).classes('w-32')
-                    
-                    ui.separator()
-                    
-                    ui.label('GUI').classes('font-bold')
-                    with ui.row().classes('gap-4'):
-                        ui.checkbox('Pełny ekran')
-                        ui.number('Interwał odświeżania (ms)', value=500, min=100, max=2000).classes('w-48')
-                    
-                    ui.separator()
-                    
                     ui.label('Dane').classes('font-bold')
                     ui.input('Katalog danych', value='./data').classes('w-full')
                     ui.checkbox('Automatyczny backup', value=True)
