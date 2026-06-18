@@ -10,7 +10,6 @@ import os
 import subprocess
 from datetime import datetime
 from typing import Optional, Callable
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -329,21 +328,6 @@ class CycleCounterGUI:
         sep = tk.Frame(buttons_frame, bg=self.COLOR_FG, height=2)
         sep.pack(fill=tk.X, pady=8)
         
-        # Przycisk eksportu USB
-        usb_btn = tk.Button(
-            buttons_frame,
-            text="Eksport USB",
-            font=("Arial", 12),
-            bg=self.COLOR_ACCENT,
-            fg=self.COLOR_FG,
-            activebackground=self.COLOR_SUCCESS,
-            activeforeground=self.COLOR_FG,
-            width=15,
-            height=1,
-            command=self._on_usb_export
-        )
-        usb_btn.pack(pady=3)
-        
         # Przycisk zamknięcia (tylko jeśli nie fullscreen)
         if not self.fullscreen:
             close_btn = tk.Button(
@@ -621,52 +605,6 @@ class CycleCounterGUI:
                     f"avg: {avg_val:.0f} ms | max: {max(durations):.0f} ms | "
                     f"ostatni: {durations[-1]:.0f} ms"
                 )
-            )
-    
-    def _on_usb_export(self):
-        """Obsługa przycisku eksportu USB"""
-        # Sprawdź czy jest aktywna sesja lub csv_handler
-        has_data = False
-        if self.session_manager and self.session_manager.is_session_active:
-            has_data = True
-        elif self.csv_handler:
-            has_data = True
-        
-        if not has_data:
-            messagebox.showerror("Błąd", "Brak danych do eksportu")
-            return
-        
-        usb_path = Path(self.usb_mount_path)
-        
-        # Sprawdź czy pendrive jest zamontowany
-        if not usb_path.exists():
-            messagebox.showwarning(
-                "Pendrive nie wykryty",
-                f"Nie znaleziono pendrive w:\n{self.usb_mount_path}\n\n"
-                "Włóż pendrive i spróbuj ponownie."
-            )
-            return
-        
-        # Eksportuj - z sesji lub csv_handler
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"cycles_export_{timestamp}.csv"
-        destination = usb_path / filename
-        
-        success = False
-        if self.session_manager and self.session_manager.is_session_active:
-            success = self.session_manager.export_session(str(destination))
-        elif self.csv_handler:
-            success = self.csv_handler.export_to_path(str(destination))
-        
-        if success:
-            messagebox.showinfo(
-                "Eksport zakończony",
-                f"Dane zostały zapisane na pendrive:\n{filename}"
-            )
-        else:
-            messagebox.showerror(
-                "Błąd eksportu",
-                "Nie udało się zapisać danych na pendrive."
             )
     
     def _toggle_fullscreen(self):
