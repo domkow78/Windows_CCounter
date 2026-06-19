@@ -16,7 +16,6 @@ Aplikacja uruchamiana jest **natywnie** z pełnym wsparciem dla GUI.
 7. [Aktualizacja aplikacji](#7-aktualizacja-aplikacji)
 8. [Rozwiązywanie problemów](#8-rozwiązywanie-problemów)
 9. [Docker (opcjonalnie)](#9-docker-opcjonalnie)
-10. [Access Point – przywracanie Wi-Fi](#10-access-point--przywracanie-wi-fi)
 
 ---
 
@@ -375,14 +374,6 @@ journalctl -u ccounter -n 50
 
 ## 7. Aktualizacja aplikacji
 
-> ⚠️ **Jeśli Pi działa w trybie Access Point** (uruchomiony `setup_ap.sh`), nie ma połączenia z Internetem.
-> Przed aktualizacją przywróć tryb klienta Wi-Fi:
->
-> ```bash
-> sudo ./restore_wifi.sh
-> ```
->
-> Skrypt `redeploy.sh` wykrywa aktywny AP i sam pyta o przywrócenie Wi-Fi.
 
 ### 7.1 Skrypt aktualizacji
 
@@ -503,78 +494,6 @@ Szczegóły w sekcji komentarzy w tych plikach.
 
 ---
 
-## 10. Access Point – przywracanie Wi-Fi
-
-Kiedy Raspberry Pi działa jako punkt dostępowy (po uruchomieniu `setup_ap.sh`),
-traci połączenie z Internetem. Aby wykonać `git pull` lub aktualizację systemu,
-należy tymczasowo przywrócić tryb klienta Wi-Fi.
-
-### Skrypt `restore_wifi.sh`
-
-```bash
-chmod +x restore_wifi.sh
-sudo ./restore_wifi.sh
-```
-
-Co robi skrypt:
-
-| Krok | Akcja |
-|------|-------|
-| 1 | Zatrzymuje i wyłącza `hostapd` oraz `dnsmasq` |
-| 2 | Usuwa blok `# CCounter AP` ze statycznym IP z `/etc/dhcpcd.conf` |
-| 3 | Przywraca oryginalny `/etc/dnsmasq.conf.orig` (jeśli istnieje) |
-| 4 | Włącza i uruchamia `wpa_supplicant` |
-| 5 | Restartuje `dhcpcd` / `NetworkManager` |
-| 6 | Czeka na adres IP i informuje o rezultacie |
-
-Po zakończeniu skrypt wyświetla przydzielony adres IP lub instrukcję ręcznej
-konfiguracji sieci (jeśli `wpa_supplicant.conf` nie zawiera żadnej sieci).
-
-### Typowy przepływ: AP → aktualizacja → AP
-
-```bash
-# 1. Przywróć Wi-Fi
-sudo ./restore_wifi.sh
-
-# 2. Zaktualizuj aplikację
-./redeploy.sh
-
-# 3. Włącz ponownie Access Point
-sudo ./setup_ap.sh
-```
-
-> ℹ️ `redeploy.sh` automatycznie wykrywa aktywny AP i pyta o przywrócenie Wi-Fi
-> przed wykonaniem `git pull`.
-
-### Konfiguracja sieci domowej (jednorazowo)
-
-Aby `restore_wifi.sh` mógł automatycznie połączyć się z siecią domową,
-upewnij się, że sieć jest zdefiniowana w `wpa_supplicant.conf`:
-
-```bash
-sudo raspi-config
-# System Options → Wireless LAN
-```
-
-Lub ręcznie:
-
-```bash
-sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
-```
-
-```
-country=PL
-ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-update_config=1
-
-network={
-    ssid="NazwaTwojejSieci"
-    psk="HasloDoSieci"
-}
-```
-
----
-
 ## Podsumowanie
 
 | Krok | Komenda |
@@ -584,6 +503,4 @@ network={
 | Autostart | `sudo systemctl enable ccounter` |
 | Logi | `journalctl -u ccounter -f` |
 | Aktualizacja | `./redeploy.sh` |
-| Konfiguracja AP | `sudo ./setup_ap.sh` |
-| Przywrócenie Wi-Fi | `sudo ./restore_wifi.sh` |
 | API Docs | `http://<IP>:8000/docs` |

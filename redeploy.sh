@@ -21,23 +21,6 @@ echo "============================================================"
 # Przejdź do katalogu aplikacji
 cd "$APP_DIR"
 
-# 0. Jeśli tryb AP jest aktywny, zaproponuj przywrócenie Wi-Fi
-if systemctl is-active --quiet hostapd 2>/dev/null; then
-    echo ""
-    echo "  ⚠️  Wykryto aktywny Access Point (hostapd)."
-    echo "     git pull wymaga dostępu do Internetu (tryb klient Wi-Fi)."
-    echo ""
-    read -r -p "  Czy przywrócić Wi-Fi przed aktualizacją? [T/n] " REPLY
-    REPLY="${REPLY:-T}"
-    if [[ "$REPLY" =~ ^[TtYy]$ ]]; then
-        echo ""
-        sudo bash "${APP_DIR}/restore_wifi.sh"
-        echo ""
-    else
-        echo "  Pomijam przywracanie Wi-Fi. Upewnij się, że masz dostęp do repo."
-    fi
-fi
-
 # 1. Zatrzymaj usługę (jeśli działa)
 echo ""
 echo "[1/5] Zatrzymywanie usługi..."
