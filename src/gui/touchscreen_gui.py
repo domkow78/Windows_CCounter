@@ -328,21 +328,8 @@ class CycleCounterGUI:
         sep = tk.Frame(buttons_frame, bg=self.COLOR_FG, height=2)
         sep.pack(fill=tk.X, pady=8)
         
-        # Przycisk zamknięcia (tylko jeśli nie fullscreen)
-        if not self.fullscreen:
-            close_btn = tk.Button(
-                buttons_frame,
-                text="❌ Zamknij",
-                font=("Arial", 12),
-                bg=self.COLOR_ERROR,
-                fg=self.COLOR_FG,
-                activebackground="#ff6b6b",
-                activeforeground=self.COLOR_FG,
-                width=15,
-                height=1,
-                command=self._on_closing
-            )
-            close_btn.pack(pady=3)
+        # Brak dodatkowego przycisku zamknięcia w trybie okienkowym.
+        # Użyj standardowego przycisku systemowego "X" w pasku okna.
     
     def _on_start_session(self):
         """Obsługa przycisku START - rozpocznij nową sesję"""
